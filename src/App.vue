@@ -6,6 +6,7 @@ import { useCatalog } from '@/composables/useCatalog'
 import { usePlayer } from '@/composables/usePlayer'
 import { useToast } from '@/composables/useToast'
 import { useTvNavigation } from '@/composables/useTvNavigation'
+import { useIdle } from '@/composables/useIdle'
 import { KEYS, useStoredRef } from '@/composables/useLocalStorage'
 import type { CatalogItem, SeriesItem, VodItem } from '@/types/iptv'
 import { APP } from '@/config/app'
@@ -19,11 +20,13 @@ import VodDetail from '@/components/VodDetail.vue'
 import SeriesDetail from '@/components/SeriesDetail.vue'
 import PlayerScreen from '@/components/PlayerScreen.vue'
 import StatusToast from '@/components/StatusToast.vue'
+import IdleSaver from '@/components/IdleSaver.vue'
 
 const acct = useAccount()
 const catalog = useCatalog()
 const player = usePlayer()
 const toast = useToast()
+const idle = useIdle()
 
 const tab = useStoredRef<NavTabId>(KEYS.lastTab, 'live')
 if (!NAV_TABS.some((t) => t.id === tab.value)) tab.value = 'live'
@@ -124,6 +127,7 @@ watch(
   <SeriesDetail v-else-if="detail?.kind === 'series'" :item="detail" :class="{ 'is-covered': player.isOpen.value }" @close="closeDetail" />
 
   <PlayerScreen v-if="player.isOpen.value" />
+  <IdleSaver v-if="idle.active.value" />
   <StatusToast />
 </template>
 

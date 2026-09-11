@@ -5,6 +5,7 @@ import { useAccount } from '@/composables/useAccount'
 import { useCatalog } from '@/composables/useCatalog'
 import { useToast } from '@/composables/useToast'
 import { useSubtitles } from '@/composables/useSubtitles'
+import { IDLE_OPTIONS, useIdle } from '@/composables/useIdle'
 import { ref } from 'vue'
 
 const emit = defineEmits<{ signedOut: [] }>()
@@ -12,6 +13,7 @@ const acct = useAccount()
 const catalog = useCatalog()
 const toast = useToast()
 const subs = useSubtitles()
+const idle = useIdle()
 const subsStatus = ref<string | null>(null)
 
 async function testSubs() {
@@ -86,6 +88,25 @@ function signOut() {
       <div class="settings__actions">
         <button class="btn" :class="{ 'btn--primary': acct.streamFormat.value === 'm3u8' }" data-focus-id="settings-fmt-hls" @click="acct.streamFormat.value = 'm3u8'">HLS (.m3u8)</button>
         <button class="btn" :class="{ 'btn--primary': acct.streamFormat.value === 'ts' }" data-focus-id="settings-fmt-ts" @click="acct.streamFormat.value = 'ts'">MPEG-TS (.ts)</button>
+      </div>
+    </section>
+
+    <section class="panel settings__card">
+      <h2>OLED protection</h2>
+      <p class="muted">
+        After this long with no remote input on a static screen, the app dims and drifts a clock about so nothing bright stays in one place. Full-screen playback never triggers it; a running preview stays visible. Any key restores the screen.
+      </p>
+      <div class="settings__actions">
+        <button
+          v-for="m in IDLE_OPTIONS"
+          :key="m"
+          class="chip"
+          :class="{ 'is-active': idle.idleMinutes.value === m }"
+          :data-focus-id="`settings-idle-${m}`"
+          @click="idle.setMinutes(m)"
+        >
+          {{ m ? `${m} min` : 'Off' }}
+        </button>
       </div>
     </section>
 

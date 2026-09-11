@@ -56,6 +56,8 @@ export interface StageRect {
 
 /** Where the preview panel wants the video; null while nothing is previewing. */
 let previewRect: StageRect | null = null
+/** The same, reactive, for anything that must draw around the preview. */
+const previewRectRef = shallowRef<StageRect | null>(null)
 
 function layoutStage() {
   const m = mode.value
@@ -80,6 +82,7 @@ function layoutStage() {
 /** The preview panel reports its box; null when it unmounts. */
 function setPreviewRect(rect: StageRect | null): void {
   previewRect = rect
+  previewRectRef.value = rect
   layoutStage()
 }
 
@@ -430,6 +433,7 @@ export function usePlayer() {
     setMode,
     leaveFullscreen,
     setPreviewRect,
+    previewRect: previewRectRef,
     isLive: computed(() => session.value?.kind === 'live'),
     playLive,
     playVod,

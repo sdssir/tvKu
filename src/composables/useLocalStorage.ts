@@ -95,6 +95,7 @@ export const KEYS = {
   catalog: 'catalog',
   quality: 'quality',
   sortModes: 'sortModes',
+  idleMinutes: 'idleMinutes',
   subtitles: 'subtitles',
   subtitleCache: 'subtitleCache',
 } as const

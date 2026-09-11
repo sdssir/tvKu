@@ -19,6 +19,9 @@ browses Live TV, Movies and Series from the remote — no mouse required.
   Movies and Series: latest added · A–Z · top rated · provider order).
 - Subtitles from OpenSubtitles, matched by TMDB id and ranked by quality (see below).
 - Favourites and Recently watched; Settings with account status, stream format, subtitles.
+- **OLED protection**: after a chosen idle time (default 3 min) on a static screen, a screensaver
+  dims everything except a running preview and drifts a clock about. Full-screen playback never
+  triggers it; a paused frame does. The key that wakes the screen is swallowed.
 
 **Design.** Follows the reference in `assets/design.png`: a left navigation rail over the
 Kuala Lumpur night plate (`assets/backgroud.png`, baked with its scrim into
