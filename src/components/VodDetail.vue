@@ -6,6 +6,7 @@ import { usePlayer } from '@/composables/usePlayer'
 import { useTvNavigation } from '@/composables/useTvNavigation'
 import type { VodDetails, VodItem } from '@/types/iptv'
 import Icon from './Icon.vue'
+import { fmtBytes, fmtMbps, parseDuration, probeSize } from '@/services/mediaInfo'
 
 const props = defineProps<{ item: VodItem }>()
 const emit = defineEmits<{ close: [] }>()
@@ -17,6 +18,18 @@ const nav = useTvNavigation()
 
 const details = ref<VodDetails | null>(null)
 const loading = ref(true)
+const bytes = ref<number | null>(null)
+onMounted(() => {
+  const url = acct.vodUrl(props.item)
+  if (url) void probeSize(url).then((n) => (bytes.value = n))
+})
+/** "1.6 GB · 2.1 Mbps" — the honest quality figure; resolution alone flatters upscales. */
+const sizeText = computed(() => {
+  const b = bytes.value
+  if (!b) return null
+  const secs = parseDuration(details.value?.duration)
+  return secs ? `${fmtBytes(b)} · ${fmtMbps(b, secs)}` : fmtBytes(b)
+})
 
 onMounted(async () => {
   nav.pushOverlay('vod-detail', () => emit('close'))
@@ -61,6 +74,7 @@ const backdrop = computed(() => details.value?.backdrop ?? props.item.poster)
           <span v-if="details?.duration">{{ details.duration }}</span>
           <span v-if="item.rating">★ {{ item.rating.toFixed(1) }}</span>
           <span v-if="details?.genre">{{ details.genre }}</span>
+          <span v-if="sizeText" class="detail__size">{{ sizeText }}</span>
         </p>
         <p v-if="details?.plot" class="detail__plot">{{ details.plot }}</p>
         <p v-else-if="loading" class="tiny">Loading details…</p>

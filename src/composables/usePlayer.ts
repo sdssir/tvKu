@@ -2,6 +2,7 @@ import { computed, nextTick, ref, shallowRef } from 'vue'
 import type { Episode, LiveChannel, SeriesItem, VodItem } from '@/types/iptv'
 import { useAccount } from './useAccount'
 import { useCatalog } from './useCatalog'
+import { probeSize } from '@/services/mediaInfo'
 
 /**
  * The application's only video engine.
@@ -97,6 +98,8 @@ const isPreviewing = computed(() => mode.value === 'preview')
 let cameFromPreview = false
 /** Decoded frame size of the current stream, as the TV reports it. */
 const resolution = ref<{ w: number; h: number } | null>(null)
+/** Byte size of the current VOD file, once probed; null for live or unknown. */
+const fileBytes = ref<number | null>(null)
 
 /** Subtitles register this: called with the item key on a VOD/episode start, null on close. */
 let onSessionStart: ((resumeKey: string | null) => void) | null = null
@@ -191,6 +194,13 @@ async function start(resumeAt = 0): Promise<void> {
   currentTime.value = 0
   duration.value = 0
   resolution.value = null
+  fileBytes.value = null
+  if (session.value?.kind !== 'live') {
+    const forUrl = url
+    void probeSize(url).then((n) => {
+      if (currentUrl() === forUrl) fileBytes.value = n
+    })
+  }
   log('play', url)
   try {
     await attach(url)
@@ -391,6 +401,7 @@ function close(): void {
   state.value = 'idle'
   errorMessage.value = null
   resolution.value = null
+  fileBytes.value = null
   mode.value = null
   cameFromPreview = false
   layoutStage()
@@ -415,6 +426,7 @@ export function usePlayer() {
     isPreviewing,
     mode,
     resolution,
+    fileBytes,
     setMode,
     leaveFullscreen,
     setPreviewRect,

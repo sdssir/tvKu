@@ -6,6 +6,7 @@ import { usePlayer } from '@/composables/usePlayer'
 import { fmtTime, progressOf, useEpg } from '@/composables/useEpg'
 import { KEY, setKeyInterceptor } from '@/composables/useTvNavigation'
 import { qualityLabel } from '@/services/quality'
+import { fmtBytes, fmtMbps } from '@/services/mediaInfo'
 import { useSubtitles } from '@/composables/useSubtitles'
 import { useToast } from '@/composables/useToast'
 import VirtualList from './VirtualList.vue'
@@ -69,7 +70,12 @@ const fmtClock = (s: number) => {
 }
 const resText = computed(() => {
   const r = player.resolution.value
-  return r ? `${qualityLabel(r.w, r.h)} · ${r.w}×${r.h}` : ''
+  if (!r) return ''
+  const parts = [`${qualityLabel(r.w, r.h)} · ${r.w}×${r.h}`]
+  const bytes = player.fileBytes.value
+  const dur = player.duration.value
+  if (bytes && dur > 0) parts.push(fmtMbps(bytes, dur), fmtBytes(bytes))
+  return parts.join(' · ')
 })
 const badgeFor = (id: string) => {
   const q = catalog.qualityFor(id)

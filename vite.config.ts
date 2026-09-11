@@ -27,7 +27,7 @@ function devProxy(): Plugin {
           const chunks: Buffer[] = []
           for await (const c of req) chunks.push(c as Buffer)
           const headers: Record<string, string> = {}
-          for (const h of ['api-key', 'authorization', 'content-type', 'accept', 'x-user-agent']) {
+          for (const h of ['api-key', 'authorization', 'content-type', 'accept', 'x-user-agent', 'range']) {
             const v = req.headers[h]
             if (typeof v === 'string') headers[h] = v
           }
@@ -40,6 +40,8 @@ function devProxy(): Plugin {
           })
           res.statusCode = upstream.status
           res.setHeader('content-type', upstream.headers.get('content-type') ?? 'application/octet-stream')
+          const cr = upstream.headers.get('content-range')
+          if (cr) res.setHeader('content-range', cr)
           res.end(Buffer.from(await upstream.arrayBuffer()))
         } catch (err) {
           res.statusCode = 502

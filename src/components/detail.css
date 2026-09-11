@@ -64,6 +64,10 @@
   font-weight: 600;
   color: var(--text-secondary);
 }
+.detail__size {
+  color: var(--accent);
+  border-color: var(--accent) !important;
+}
 .detail__plot {
   max-width: 68rem;
   font-size: var(--fs-lg);

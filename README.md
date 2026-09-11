@@ -12,6 +12,9 @@ browses Live TV, Movies and Series from the remote — no mouse required.
   OK-to-open channel list and digit entry.
 - Movies: poster grid, detail page (plot, cast, rating, duration), resume where you left off.
 - Series: seasons and episodes, auto-plays the next episode, remembers position per episode.
+- Movie detail pages and the player OSD show the file's **size and average bitrate** next to the
+  decoded resolution — resolution alone flatters upscaled sources, and a 2 Mbps "1080p" file and a
+  14 Mbps one look nothing alike.
 - Every browsing tab has its own **search** and **sort** (Live: provider order · HD first · A–Z;
   Movies and Series: latest added · A–Z · top rated · provider order).
 - Subtitles from OpenSubtitles, matched by TMDB id and ranked by quality (see below).
