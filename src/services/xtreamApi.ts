@@ -190,6 +190,7 @@ export class XtreamApi {
           year: year(s.year ?? s.releaseDate ?? s.release_date),
           plot: orNull(s.plot),
           seriesId: str(s.series_id),
+          added: num(s.last_modified),
         }),
       )
       .filter((v) => v.seriesId)

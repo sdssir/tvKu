@@ -47,7 +47,11 @@ function signOut() {
 </script>
 
 <template>
-  <div class="settings">
+  <div class="view">
+    <header class="view__bar">
+      <h1 class="view__title">Settings</h1>
+    </header>
+  <div class="settings view__body">
     <section class="panel settings__card">
       <h2>Account</h2>
       <dl>
@@ -86,16 +90,6 @@ function signOut() {
     </section>
 
     <section class="panel settings__card">
-      <h2>Live TV ordering</h2>
-      <p class="muted">Inside each category, list channels whose name says 4K / FHD / HD before the rest. The provider's own order is kept within each tier; the All list is never reordered.</p>
-      <div class="settings__actions">
-        <button class="btn" :class="{ 'btn--primary': catalog.preferHd.value }" data-focus-id="settings-hd-on" @click="catalog.preferHd.value = true">HD channels first</button>
-        <button class="btn" :class="{ 'btn--primary': !catalog.preferHd.value }" data-focus-id="settings-hd-off" @click="catalog.preferHd.value = false">Provider order</button>
-      </div>
-      <p class="tiny">The TV's own picture processing (Super Resolution, AI Picture Pro) already applies to this app; set it under ⚙ → Picture while a channel is playing.</p>
-    </section>
-
-    <section class="panel settings__card">
       <h2>Subtitles (OpenSubtitles)</h2>
       <p class="muted">
         Movies and episodes can pull subtitles from opensubtitles.com. Register a free API key at opensubtitles.com/consumers; a user login raises the daily download limit.
@@ -123,17 +117,17 @@ function signOut() {
 
     <p class="tiny">{{ APP.title }} {{ APP.version }} · {{ APP.id }}</p>
   </div>
+  </div>
 </template>
 
 <style scoped>
 .settings {
   overflow-y: auto;
-  height: 100%;
   padding-right: var(--sp-2);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  max-width: 70rem;
+  max-width: 72rem;
 }
 .settings__card {
   padding: var(--sp-5) var(--sp-6);

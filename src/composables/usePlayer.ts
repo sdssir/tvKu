@@ -12,9 +12,12 @@ import { useCatalog } from './useCatalog'
  * DOM while open and gives it back on close.
  *
  * Confirmed on the device: webOS does not start loading a media element that
- * is not in the document (desktop Chrome does), so the element is parked in a
- * hidden stage between sessions and `src` is only set once the player screen
- * has adopted it.
+ * is not in the document (desktop Chrome does), and moving it in the DOM
+ * restarts the pipeline. So the element never moves. It lives in one fixed
+ * stage under the UI for the life of the app, and "preview" versus "full
+ * screen" is only a matter of the stage's rectangle: the Live TV preview
+ * panel leaves a transparent hole where the stage shows through, and full
+ * screen is the stage at inset 0 with the UI hidden.
  */
 
 export type PlayerState = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error'
@@ -33,16 +36,65 @@ video.autoplay = false
 video.setAttribute('playsinline', '')
 
 const stage = document.createElement('div')
-stage.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden'
+stage.id = 'video-stage'
+stage.style.cssText =
+  'position:fixed;left:0;top:0;width:1px;height:1px;z-index:0;overflow:hidden;background:#000;pointer-events:none;visibility:hidden;border-radius:0'
+video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;background:#000;object-fit:contain'
 stage.appendChild(video)
 document.body.appendChild(stage)
+
+export type PlayerMode = 'preview' | 'fullscreen'
+
+export interface StageRect {
+  left: number
+  top: number
+  width: number
+  height: number
+  radius?: number
+}
+
+/** Where the preview panel wants the video; null while nothing is previewing. */
+let previewRect: StageRect | null = null
+
+function layoutStage() {
+  const m = mode.value
+  if (!session.value || !m) {
+    stage.style.visibility = 'hidden'
+    return
+  }
+  stage.style.visibility = 'visible'
+  if (m === 'fullscreen' || !previewRect) {
+    stage.style.cssText +=
+      ';left:0;top:0;width:100vw;height:100vh;border-radius:0'
+    return
+  }
+  const r = previewRect
+  stage.style.left = `${r.left}px`
+  stage.style.top = `${r.top}px`
+  stage.style.width = `${r.width}px`
+  stage.style.height = `${r.height}px`
+  stage.style.borderRadius = `${r.radius ?? 0}px`
+}
+
+/** The preview panel reports its box; null when it unmounts. */
+function setPreviewRect(rect: StageRect | null): void {
+  previewRect = rect
+  layoutStage()
+}
 
 const state = ref<PlayerState>('idle')
 const session = shallowRef<Session | null>(null)
 const errorMessage = ref<string | null>(null)
 const currentTime = ref(0)
 const duration = ref(0)
-const isOpen = ref(false)
+/** null = nothing playing; 'preview' = inside the Live TV panel; 'fullscreen' = the player screen. */
+const mode = ref<PlayerMode | null>(null)
+/** The player screen shows only in full screen. */
+const isOpen = computed(() => mode.value === 'fullscreen')
+/** True while a live channel is playing inside the preview panel. */
+const isPreviewing = computed(() => mode.value === 'preview')
+/** Full screen entered from a preview goes back to the preview on Back. */
+let cameFromPreview = false
 /** Decoded frame size of the current stream, as the TV reports it. */
 const resolution = ref<{ w: number; h: number } | null>(null)
 
@@ -232,21 +284,44 @@ function resumeKey(s: Session): string {
 
 /* ── public API ───────────────────────────────────────────────────────── */
 
-async function playLive(list: LiveChannel[], index: number): Promise<void> {
+async function playLive(list: LiveChannel[], index: number, as: PlayerMode = 'fullscreen'): Promise<void> {
   const channel = list[index]
   if (!channel) return
+  const s = session.value
+  // Same channel already running in the preview: just switch the mode.
+  if (s?.kind === 'live' && s.channel.id === channel.id && mode.value && mode.value !== as) {
+    setMode(as)
+    return
+  }
   session.value = { kind: 'live', channel, list, index }
   onSessionStart?.(null)
-  isOpen.value = true
+  cameFromPreview = as === 'preview'
+  mode.value = as
+  layoutStage()
   retryAttempt = 0
   useCatalog().markWatched(channel)
-  await nextTick() // let PlayerScreen adopt the element first
+  await nextTick()
   await start()
+}
+
+function setMode(as: PlayerMode) {
+  if (!session.value) return
+  if (as === 'fullscreen' && mode.value === 'preview') cameFromPreview = true
+  mode.value = as
+  layoutStage()
+}
+
+/** Back from full screen: return to the preview it came from, else stop. */
+function leaveFullscreen(): void {
+  if (session.value?.kind === 'live' && cameFromPreview && previewRect) setMode('preview')
+  else close()
 }
 
 async function playVod(item: VodItem): Promise<void> {
   session.value = { kind: 'vod', item }
-  isOpen.value = true
+  cameFromPreview = false
+  mode.value = 'fullscreen'
+  layoutStage()
   retryAttempt = 0
   const cat = useCatalog()
   cat.markWatched(item)
@@ -259,7 +334,9 @@ async function playEpisode(series: SeriesItem, episodes: Episode[], index: numbe
   const episode = episodes[index]
   if (!episode) return
   session.value = { kind: 'episode', series, episode, episodes, index }
-  isOpen.value = true
+  cameFromPreview = false
+  mode.value = 'fullscreen'
+  layoutStage()
   retryAttempt = 0
   const cat = useCatalog()
   cat.markWatched(series)
@@ -314,8 +391,9 @@ function close(): void {
   state.value = 'idle'
   errorMessage.value = null
   resolution.value = null
-  isOpen.value = false
-  stage.appendChild(video)
+  mode.value = null
+  cameFromPreview = false
+  layoutStage()
 }
 
 /** The TV went to the launcher / another app: stop streaming rather than run hidden. */
@@ -334,7 +412,12 @@ export function usePlayer() {
     currentTime,
     duration,
     isOpen,
+    isPreviewing,
+    mode,
     resolution,
+    setMode,
+    leaveFullscreen,
+    setPreviewRect,
     isLive: computed(() => session.value?.kind === 'live'),
     playLive,
     playVod,

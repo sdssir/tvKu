@@ -41,7 +41,8 @@ const DIRECTION_OF: Record<number, Direction> = {
   [KEY.DOWN]: 'down',
 }
 
-const focusedId = ref<string | null>(null)
+/** The focusable that currently owns the D-pad. Lists use it to show one cursor ring, not one per list. */
+export const focusedId = ref<string | null>(null)
 
 /** LIFO stack of open overlays; Back closes the top one before anything else. */
 const overlays: Array<{ id: string; close: () => void }> = []

@@ -1,6 +1,6 @@
 {
   "id": "com.jul.tvku",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "vendor": "Jul",
   "type": "web",
   "main": "index.html",
@@ -9,7 +9,7 @@
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
   "bgColor": "#05070c",
-  "iconColor": "#22c55e",
+  "iconColor": "#f2b544",
   "resolution": "1920x1080",
   "supportPortraitMode": false,
   "disableBackHistoryAPI": true,

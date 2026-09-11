@@ -1,13 +1,16 @@
+/* Shared by the movie and series detail overlays: a hero backdrop with a scrim. */
 .detail {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: var(--bg-0) var(--backdrop, none) center / cover no-repeat;
+  background: var(--bg-0) var(--backdrop, none) right top / 70% auto no-repeat;
 }
 .detail__scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(5, 7, 12, 0.96) 35%, rgba(5, 7, 12, 0.75));
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7) 70%, #000),
+    var(--grad-hero);
 }
 .detail__body {
   position: relative;
@@ -23,7 +26,8 @@
   border-radius: var(--r-lg);
   background: var(--bg-2);
   overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--line);
 }
 .detail__poster img {
   width: 100%;
@@ -38,21 +42,32 @@
   height: 100%;
 }
 .detail__text h1 {
-  font-size: var(--fs-3xl);
+  font-size: var(--fs-4xl);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
 }
 .detail__meta {
   display: flex;
-  gap: var(--sp-4);
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.detail__meta > span {
+  padding: 0.15rem 0.7rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  font-size: var(--fs-sm);
   font-weight: 600;
+  color: var(--text-secondary);
 }
 .detail__plot {
-  max-width: 70rem;
+  max-width: 68rem;
   font-size: var(--fs-lg);
+  line-height: 1.5;
   color: var(--text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { Direction } from '@/composables/useTvNavigation'
+import { focusedId, type Direction } from '@/composables/useTvNavigation'
 import type { CatalogItem } from '@/types/iptv'
 import { useCatalog } from '@/composables/useCatalog'
 import MediaCard from './MediaCard.vue'
@@ -21,7 +21,7 @@ const emit = defineEmits<{ 'update:cursor': [index: number]; select: [item: Cata
 
 const catalog = useCatalog()
 const root = ref<HTMLElement | null>(null)
-const rowHeightRem = computed(() => (props.variant === 'wide' ? 11 : 20))
+const rowHeightRem = computed(() => (props.variant === 'wide' ? 11.5 : 22.5))
 const viewportRows = ref(3)
 
 function measure() {
@@ -45,6 +45,7 @@ onBeforeUnmount(() => {
 })
 
 const count = computed(() => props.items.length)
+const focused = computed(() => focusedId.value === props.focusId)
 const rows = computed(() => Math.ceil(count.value / props.columns))
 const safeCursor = computed(() => Math.min(Math.max(0, props.cursor), Math.max(0, count.value - 1)))
 const cursorRow = computed(() => Math.floor(safeCursor.value / props.columns))
@@ -148,7 +149,8 @@ watch(count, () => {
       <MediaCard
         :item="cell.item"
         :variant="variant ?? 'poster'"
-        :is-cursor="cell.index === safeCursor"
+        :is-cursor="cell.index === safeCursor && focused"
+        :is-marked="cell.index === safeCursor && !focused"
         :favorite="catalog.isFavorite(cell.item.id)"
       />
     </div>
@@ -165,6 +167,6 @@ watch(count, () => {
   position: absolute;
   width: calc(100% / var(--cols));
   height: var(--row-h);
-  padding: var(--sp-3);
+  padding: var(--sp-3) var(--sp-3);
 }
 </style>

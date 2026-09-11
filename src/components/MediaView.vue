@@ -6,8 +6,9 @@ import type { CatalogItem, ContentKind } from '@/types/iptv'
 import VirtualList from './VirtualList.vue'
 import CategoryRow from './CategoryRow.vue'
 import PosterGrid from './PosterGrid.vue'
+import ViewToolbar from './ViewToolbar.vue'
 
-/** Movies and Series share this: a category rail and a poster grid. */
+/** Movies and Series share this: toolbar, category rail and a poster grid. */
 const props = defineProps<{ kind: Exclude<ContentKind, 'live'> }>()
 const emit = defineEmits<{ open: [item: CatalogItem] }>()
 
@@ -17,6 +18,8 @@ const catCursor = ref(0)
 const gridCursor = ref(0)
 const activeCategoryId = ref(categories.value[0]?.id ?? '')
 const items = computed(() => catalog.itemsIn(props.kind, activeCategoryId.value))
+const searching = computed(() => catalog.isSearching(props.kind))
+const title = computed(() => (props.kind === 'vod' ? 'Movies' : 'Series'))
 
 const counts = computed(() => {
   const m = new Map<string, number>()
@@ -26,7 +29,14 @@ const counts = computed(() => {
 
 const loading = computed(() => catalog.loading.value[props.kind])
 onMounted(() => void catalog.ensure(props.kind))
-watch(() => props.kind, (k) => void catalog.ensure(k))
+watch(
+  () => props.kind,
+  (k) => void catalog.ensure(k),
+)
+watch(
+  () => [catalog.queries.value[props.kind], catalog.sortModes.value[props.kind]],
+  () => (gridCursor.value = 0),
+)
 
 function onBrowseCategory(i: number) {
   const cat = categories.value[i]
@@ -37,66 +47,61 @@ function onBrowseCategory(i: number) {
 </script>
 
 <template>
-  <div v-if="loading" class="app__loading">
+  <div v-if="loading" class="loading-block">
     <span class="spinner"></span>
-    <p>Loading {{ kind === 'vod' ? 'movies' : 'series' }}… this takes a moment the first time</p>
+    <p>Loading {{ title.toLowerCase() }}… this takes a moment the first time</p>
   </div>
-  <div v-else class="media">
-    <aside class="media__cats panel">
-      <VirtualList
-        v-model:cursor="catCursor"
-        :items="categories"
-        :focus-id="`${kind}-cats`"
-        :item-height-rem="3.6"
-        @browse="onBrowseCategory"
-        @select="onBrowseCategory"
-      >
-        <template #default="{ item, isCursor }">
-          <CategoryRow
-            :category="item"
-            :is-cursor="isCursor"
-            :active="item.id === activeCategoryId"
-            :count="counts.get(item.id)"
-          />
-        </template>
-      </VirtualList>
-    </aside>
-    <section class="media__grid">
-      <PosterGrid
-        v-model:cursor="gridCursor"
-        :items="items"
-        :focus-id="`${kind}-grid`"
-        :columns="POSTER_COLUMNS"
-        @select="(item) => emit('open', item)"
-      >
-        <template #empty>{{ kind === 'vod' ? 'No movies here' : 'No series here' }}</template>
-      </PosterGrid>
-    </section>
+  <div v-else class="view">
+    <ViewToolbar
+      :kind="kind"
+      :title="title"
+      :count="items.length"
+      :query="catalog.queries.value[kind]"
+      :sort="catalog.sortModes.value[kind]"
+      :placeholder="`Search ${title.toLowerCase()}`"
+      @update:query="(q) => (catalog.queries.value[kind] = q)"
+      @update:sort="(s) => (catalog.sortModes.value[kind] = s)"
+    />
+    <div class="media view__body">
+      <aside class="media__cats panel" :class="{ 'is-dim': searching }">
+        <VirtualList
+          v-model:cursor="catCursor"
+          :items="categories"
+          :focus-id="`${kind}-cats`"
+          :item-height-rem="3.5"
+          @browse="onBrowseCategory"
+          @select="onBrowseCategory"
+        >
+          <template #default="{ item, isCursor, isMarked }">
+            <CategoryRow :category="item" :is-cursor="isCursor" :is-marked="isMarked" :active="!searching && item.id === activeCategoryId" :count="counts.get(item.id)" />
+          </template>
+        </VirtualList>
+      </aside>
+      <section class="media__grid">
+        <PosterGrid v-model:cursor="gridCursor" :items="items" :focus-id="`${kind}-grid`" :columns="POSTER_COLUMNS" @select="(item) => emit('open', item)">
+          <template #empty>{{ searching ? 'Nothing matches' : kind === 'vod' ? 'No movies here' : 'No series here' }}</template>
+        </PosterGrid>
+      </section>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .media {
   display: grid;
-  grid-template-columns: 20rem 1fr;
+  grid-template-columns: 18rem 1fr;
   gap: var(--sp-4);
-  height: 100%;
+  min-height: 0;
 }
 .media__cats {
   min-height: 0;
   padding: var(--sp-2) 0;
   overflow: hidden;
 }
+.media__cats.is-dim {
+  opacity: 0.45;
+}
 .media__grid {
   min-height: 0;
-}
-.app__loading {
-  height: 100%;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: var(--sp-4);
-  color: var(--text-secondary);
-  font-size: var(--fs-lg);
 }
 </style>

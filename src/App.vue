@@ -9,11 +9,10 @@ import { useTvNavigation } from '@/composables/useTvNavigation'
 import { KEYS, useStoredRef } from '@/composables/useLocalStorage'
 import type { CatalogItem, SeriesItem, VodItem } from '@/types/iptv'
 import LoginScreen from '@/components/LoginScreen.vue'
-import TopNav from '@/components/TopNav.vue'
+import SideNav from '@/components/SideNav.vue'
 import LiveView from '@/components/LiveView.vue'
 import MediaView from '@/components/MediaView.vue'
 import FavoritesView from '@/components/FavoritesView.vue'
-import SearchView from '@/components/SearchView.vue'
 import SettingsView from '@/components/SettingsView.vue'
 import VodDetail from '@/components/VodDetail.vue'
 import SeriesDetail from '@/components/SeriesDetail.vue'
@@ -32,12 +31,18 @@ const detail = shallowRef<VodItem | SeriesItem | null>(null)
 const screen = computed(() => (acct.isSignedIn.value ? 'home' : 'login'))
 
 /**
- * Back, narrowest state first: the player and detail overlays handle their
- * own; then a non-default tab returns to Live TV; then webOS exits the app.
+ * Back, narrowest state first. The full-screen player and detail overlays
+ * handle their own; then a running preview stops; then a non-default tab
+ * returns to Live TV; then webOS exits the app.
  */
 const nav = useTvNavigation({
   onBack: () => {
-    if (screen.value === 'home' && tab.value !== 'live') {
+    if (screen.value !== 'home') return false
+    if (player.isPreviewing.value) {
+      player.close()
+      return true
+    }
+    if (tab.value !== 'live') {
       setTab('live')
       return true
     }
@@ -52,10 +57,10 @@ function setTab(id: NavTabId) {
 
 function open(item: CatalogItem) {
   if (item.kind === 'live') {
-    // From favourites/search: play it with its own category as the zap list.
-    const list = catalog.itemsIn('live', item.categoryId)
+    // From favourites: play it with its own category as the zap list.
+    const list = catalog.itemsIn('live', item.categoryId).filter((x): x is typeof item => x.kind === 'live')
     const idx = list.findIndex((x) => x.id === item.id)
-    void player.playLive(list.filter((x): x is typeof item => x.kind === 'live'), Math.max(0, idx))
+    void player.playLive(list, Math.max(0, idx))
     return
   }
   detail.value = item
@@ -82,7 +87,7 @@ watch(screen, (s) => {
   else void nav.reanchorFocus('login-mode-xtream')
 })
 
-// Leaving the player: put the remote back where it was.
+// Leaving full screen: put the remote back where it was.
 watch(
   () => player.isOpen.value,
   (open) => {
@@ -94,10 +99,11 @@ watch(
 <template>
   <LoginScreen v-if="screen === 'login'" />
 
-  <div v-else class="app" :inert="detail !== null || player.isOpen.value ? true : undefined">
-    <TopNav :active="tab" @change="setTab" />
-    <main class="app__main">
-      <div v-if="catalog.loading.value.live && !catalog.live.value.length" class="app__loading">
+  <!-- Hidden (not removed) while full screen, so the Live tab keeps its state and the preview rect. -->
+  <div v-else class="shell" :class="{ 'is-covered': player.isOpen.value }" :inert="detail !== null || player.isOpen.value ? true : undefined">
+    <SideNav :active="tab" @change="setTab" />
+    <main class="shell__main">
+      <div v-if="catalog.loading.value.live && !catalog.live.value.length" class="loading-block">
         <span class="spinner"></span>
         <p>Loading your channels…</p>
       </div>
@@ -106,7 +112,6 @@ watch(
         <MediaView v-else-if="tab === 'movies'" kind="vod" @open="open" />
         <MediaView v-else-if="tab === 'series'" kind="series" @open="open" />
         <FavoritesView v-else-if="tab === 'favorites'" @open="open" />
-        <SearchView v-else-if="tab === 'search'" @open="open" />
         <SettingsView v-else @signed-out="setTab('live')" />
       </template>
     </main>
@@ -120,23 +125,25 @@ watch(
 </template>
 
 <style scoped>
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.app__main {
-  flex: 1;
-  min-height: 0;
-  padding: var(--sp-4) var(--safe-x) var(--safe-y);
-}
-.app__loading {
-  height: 100%;
+/*
+ * The shell is transparent: the video stage sits beneath it (z-index 0) and
+ * the Live TV preview box is the hole it shows through. Anything opaque here
+ * would cover it.
+ */
+.shell {
+  position: relative;
+  z-index: 1;
   display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: var(--sp-4);
-  color: var(--text-secondary);
-  font-size: var(--fs-lg);
+  grid-template-columns: var(--rail-w) 1fr;
+  height: 100%;
+  background: transparent;
+}
+.shell.is-covered {
+  visibility: hidden;
+}
+.shell__main {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--safe-y) var(--safe-x) var(--safe-y) var(--sp-6);
 }
 </style>

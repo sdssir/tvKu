@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef } from 'vue'
-import { CATALOG_TTL_MS } from '@/config/app'
+import { CATALOG_TTL_MS, SORT_OPTIONS, type SortId } from '@/config/app'
 import type { CatalogItem, Category, ContentKind, LiveChannel, SeriesItem, VodItem } from '@/types/iptv'
 import { KEYS, readStorage, removeStorage, useStoredRef, writeStorage } from './useLocalStorage'
 import { useAccount } from './useAccount'
@@ -39,8 +39,14 @@ const recents = useStoredRef<CatalogItem[]>(KEYS.recents, [])
 const resume = useStoredRef<Record<string, { at: number; duration: number }>>(KEYS.resume, {})
 /** Frame size the TV actually decoded the last time an item played, keyed by item id. */
 const quality = useStoredRef<Record<string, { w: number; h: number }>>(KEYS.quality, {})
-/** Put channels whose name claims HD/4K ahead of the rest inside each category. */
-const preferHd = useStoredRef<boolean>(KEYS.preferHd, true)
+/** Sort choice per tab, persisted; the first option of each tab is the default. */
+const sortModes = useStoredRef<Record<ContentKind, SortId>>(KEYS.sortModes, {
+  live: SORT_OPTIONS.live[0].id,
+  vod: SORT_OPTIONS.vod[0].id,
+  series: SORT_OPTIONS.series[0].id,
+})
+/** Search text per tab. Not persisted: a search is a moment, not a setting. */
+const queries = ref<Record<ContentKind, string>>({ live: '', vod: '', series: '' })
 
 const isLoading = computed(() => loading.value.live || loading.value.vod || loading.value.series)
 
@@ -130,6 +136,7 @@ export function useCatalog() {
     series.value = []
     loaded.value = { live: false, vod: false, series: false }
     loadError.value = null
+    queries.value = { live: '', vod: '', series: '' }
   }
 
   /* ── browsing ───────────────────────────────────────────────────────── */
@@ -148,49 +155,59 @@ export function useCatalog() {
     ]
   }
 
+  const isSearching = (kind: ContentKind) => queries.value[kind].trim().length >= 2
+
+  /**
+   * What a tab shows: the category's items — or, while a search is typed,
+   * matches from the whole tab regardless of category — in the chosen order.
+   */
   function itemsIn(kind: ContentKind, categoryId: string): CatalogItem[] {
-    switch (categoryId) {
-      case ALL_CATEGORY:
-        // Never reordered: across a whole provider the "4K" names are mostly dead relays.
-        return listFor(kind)
-      case FAVORITES_CATEGORY:
-        return favorites.value.filter((x) => x.kind === kind)
-      case RECENT_CATEGORY:
-        return recents.value.filter((x) => x.kind === kind)
-      default:
-        return hdFirst(
-          kind,
-          listFor(kind).filter((x) => x.categoryId === categoryId),
-        )
+    let items: CatalogItem[]
+    if (isSearching(kind)) {
+      const q = queries.value[kind].trim().toLowerCase()
+      items = listFor(kind).filter((x) => x.name.toLowerCase().includes(q))
+    } else {
+      switch (categoryId) {
+        case ALL_CATEGORY:
+          items = listFor(kind)
+          break
+        case FAVORITES_CATEGORY:
+          items = favorites.value.filter((x) => x.kind === kind)
+          break
+        case RECENT_CATEGORY:
+          items = recents.value.filter((x) => x.kind === kind)
+          break
+        default:
+          items = listFor(kind).filter((x) => x.categoryId === categoryId)
+      }
     }
+    return sorted(kind, items)
   }
 
   /**
-   * Stable sort, so the provider's order survives inside each quality tier.
-   * Live only, and only inside a real category: movie and series names carry
-   * no such tags.
+   * Stable sorts, so the provider's order survives inside every tie. "Latest
+   * added" uses the panel's own timestamps; an item without one sinks.
    */
-  function hdFirst(kind: ContentKind, items: CatalogItem[]): CatalogItem[] {
-    if (kind !== 'live' || !preferHd.value) return items
-    return items
-      .map((item, i) => ({ item, i, rank: nameQualityRank(item.name) }))
-      .sort((a, b) => a.rank - b.rank || a.i - b.i)
-      .map((x) => x.item)
-  }
-
-  function search(query: string, limit = 60): CatalogItem[] {
-    const q = query.trim().toLowerCase()
-    if (q.length < 2) return []
-    const out: CatalogItem[] = []
-    for (const list of [live.value, vod.value, series.value]) {
-      for (const item of list) {
-        if (item.name.toLowerCase().includes(q)) {
-          out.push(item)
-          if (out.length >= limit) return out
-        }
-      }
+  function sorted(kind: ContentKind, items: CatalogItem[]): CatalogItem[] {
+    const mode = sortModes.value[kind]
+    if (mode === 'default') return items
+    const idx = items.map((item, i) => ({ item, i }))
+    const by = (f: (x: CatalogItem) => number) => idx.sort((a, b) => f(a.item) - f(b.item) || a.i - b.i)
+    switch (mode) {
+      case 'hd':
+        by((x) => nameQualityRank(x.name))
+        break
+      case 'name':
+        idx.sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: 'base' }) || a.i - b.i)
+        break
+      case 'latest':
+        by((x) => -(x.kind === 'live' ? 0 : (x.added ?? 0)))
+        break
+      case 'rating':
+        by((x) => -(x.kind === 'live' ? 0 : (x.rating ?? 0)))
+        break
     }
-    return out
+    return idx.map((x) => x.item)
   }
 
   /* ── favourites / recents / resume ──────────────────────────────────── */
@@ -242,7 +259,9 @@ export function useCatalog() {
     listFor,
     categoriesFor,
     itemsIn,
-    search,
+    isSearching,
+    sortModes,
+    queries,
     favorites,
     recents,
     isFavorite,
@@ -252,6 +271,5 @@ export function useCatalog() {
     positionFor,
     saveQuality,
     qualityFor,
-    preferHd,
   }
 }

@@ -1,3 +1,19 @@
+/* Bundled with the app: the TV must not depend on a font CDN at launch. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/outfit-latin.woff2') format('woff2');
+}
+
 *,
 *::before,
 *::after {
@@ -27,10 +43,12 @@ body {
   margin: 0;
   overflow: hidden; /* a TV app never scrolls the page */
   color: var(--text-primary);
-  font-family: 'LG Smart UI', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-md);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01', 'tnum';
   background: var(--bg-0);
   user-select: none;
   cursor: default;
@@ -42,6 +60,13 @@ h3,
 p,
 figure {
   margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
 ul,
@@ -73,4 +98,9 @@ img {
 
 *:focus {
   outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }

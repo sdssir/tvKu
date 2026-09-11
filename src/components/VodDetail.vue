@@ -5,6 +5,7 @@ import { useCatalog } from '@/composables/useCatalog'
 import { usePlayer } from '@/composables/usePlayer'
 import { useTvNavigation } from '@/composables/useTvNavigation'
 import type { VodDetails, VodItem } from '@/types/iptv'
+import Icon from './Icon.vue'
 
 const props = defineProps<{ item: VodItem }>()
 const emit = defineEmits<{ close: [] }>()
@@ -68,13 +69,13 @@ const backdrop = computed(() => details.value?.backdrop ?? props.item.poster)
 
         <div class="detail__actions">
           <button class="btn btn--primary" data-focus-id="detail-play" @click="play()">
-            ▶ {{ resumeLabel ?? 'Play' }}
+            <Icon name="play" /> {{ resumeLabel ?? 'Play' }}
           </button>
           <button v-if="resumeLabel" class="btn" data-focus-id="detail-restart" @click="play(true)">Play from start</button>
           <button class="btn" data-focus-id="detail-fav" @click="catalog.toggleFavorite(item)">
-            {{ catalog.isFavorite(item.id) ? '♥ Remove favourite' : '♡ Add favourite' }}
+            <Icon :name="catalog.isFavorite(item.id) ? 'heart-filled' : 'heart'" /> {{ catalog.isFavorite(item.id) ? 'Favourite' : 'Add favourite' }}
           </button>
-          <button class="btn" data-focus-id="detail-back" @click="emit('close')">Back</button>
+          <button class="btn btn--ghost" data-focus-id="detail-back" @click="emit('close')"><Icon name="back" /> Back</button>
         </div>
       </div>
     </div>

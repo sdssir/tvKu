@@ -6,6 +6,7 @@ const props = defineProps<{
   item: CatalogItem
   variant: 'poster' | 'wide'
   isCursor: boolean
+  isMarked?: boolean
   favorite: boolean
 }>()
 
@@ -16,8 +17,7 @@ watch(art, () => (broken.value = false))
 const meta = computed(() => {
   const i = props.item
   if (i.kind === 'live') return `CH ${i.num}`
-  const bits = [i.year, i.rating ? `★ ${i.rating.toFixed(1)}` : null].filter(Boolean)
-  return bits.join(' · ')
+  return [i.year, i.rating ? `★ ${i.rating.toFixed(1)}` : null].filter(Boolean).join(' · ')
 })
 const initials = computed(() =>
   props.item.name
@@ -29,45 +29,48 @@ const initials = computed(() =>
 </script>
 
 <template>
-  <figure class="card" :class="[`card--${variant}`, { 'is-cursor': isCursor }]">
+  <figure class="card" :class="[`card--${variant}`, { 'is-cursor': isCursor, 'is-marked': isMarked }]">
     <div class="card__art">
       <img v-if="art && !broken" :src="art" alt="" loading="lazy" @error="broken = true" />
       <span v-else class="card__initials">{{ initials }}</span>
+      <span v-if="item.kind === 'live'" class="badge badge--live card__live">LIVE</span>
       <span v-if="favorite" class="card__fav">♥</span>
-      <span v-if="item.kind === 'live'" class="card__live">LIVE</span>
+      <figcaption class="card__caption">
+        <span class="card__name">{{ item.name }}</span>
+        <span class="card__meta">{{ meta }}</span>
+      </figcaption>
     </div>
-    <figcaption class="card__caption">
-      <span class="card__name">{{ item.name }}</span>
-      <span class="card__meta">{{ meta }}</span>
-    </figcaption>
   </figure>
 </template>
 
 <style scoped>
 .card {
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  border-radius: var(--r-md);
-  transition: transform var(--t-fast);
+  transition: transform var(--t-med);
+  transform-origin: center;
 }
 .card.is-cursor {
-  transform: scale(1.05);
+  transform: scale(1.06);
+  z-index: 2;
 }
 .card__art {
   position: relative;
-  flex: 1;
-  min-height: 0;
+  height: 100%;
   border-radius: var(--r-md);
   background: var(--bg-2);
   border: 3px solid transparent;
   overflow: hidden;
   display: grid;
   place-items: center;
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow var(--t-med);
+}
+.card.is-marked .card__art {
+  border-color: var(--line-strong);
 }
 .card.is-cursor .card__art {
   border-color: var(--focus-ring);
-  box-shadow: 0 0 0 0.2rem var(--focus-glow), var(--shadow);
+  box-shadow: var(--shadow-focus);
 }
 .card__art img {
   width: 100%;
@@ -76,37 +79,39 @@ const initials = computed(() =>
 }
 .card--wide .card__art img {
   object-fit: contain;
-  padding: var(--sp-3);
+  padding: var(--sp-4) var(--sp-4) 3.4rem;
 }
 .card__initials {
-  font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--fs-3xl);
+  font-weight: 800;
   color: var(--text-muted);
 }
-.card__fav,
 .card__live {
   position: absolute;
   top: var(--sp-2);
-  padding: 0.1rem 0.5rem;
+  left: var(--sp-2);
+}
+.card__fav {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  padding: 0.05rem 0.45rem;
   border-radius: var(--r-sm);
+  color: #fff;
+  background: rgba(255, 59, 78, 0.9);
   font-size: var(--fs-xs);
   font-weight: 700;
 }
-.card__fav {
-  right: var(--sp-2);
-  color: #fff;
-  background: rgba(239, 68, 68, 0.85);
-}
-.card__live {
-  left: var(--sp-2);
-  color: #fff;
-  background: var(--live);
-}
 .card__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--sp-2) var(--sp-1) 0;
-  min-height: 3.2rem;
+  padding: 2.2rem var(--sp-3) var(--sp-3);
+  background: var(--grad-caption);
 }
 .card__name {
   font-size: var(--fs-sm);
@@ -114,9 +119,10 @@ const initials = computed(() =>
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 .card__meta {
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 </style>

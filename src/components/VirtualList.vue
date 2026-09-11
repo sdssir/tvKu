@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { Direction } from '@/composables/useTvNavigation'
+import { focusedId, type Direction } from '@/composables/useTvNavigation'
 
 /**
  * A vertical list that is ONE focusable for the D-pad and renders only the
@@ -49,6 +49,8 @@ onBeforeUnmount(() => {
 })
 
 const count = computed(() => props.items.length)
+/** Only the list that owns the D-pad draws the white ring; others mark their cursor quietly. */
+const focused = computed(() => focusedId.value === props.focusId)
 const safeCursor = computed(() => Math.min(Math.max(0, props.cursor), Math.max(0, count.value - 1)))
 
 /** First rendered index: keep the cursor in the middle third of the viewport. */
@@ -126,7 +128,7 @@ defineExpose({ setCursor })
       :data-cursor="row.index === safeCursor ? '' : undefined"
       @click.stop="onRowClick(row.index)"
     >
-      <slot :item="row.item" :index="row.index" :is-cursor="row.index === safeCursor" />
+      <slot :item="row.item" :index="row.index" :is-cursor="row.index === safeCursor && focused" :is-marked="row.index === safeCursor && !focused" />
     </div>
   </div>
 </template>

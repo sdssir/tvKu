@@ -94,7 +94,7 @@ export const KEYS = {
   lastTab: 'lastTab',
   catalog: 'catalog',
   quality: 'quality',
-  preferHd: 'preferHd',
+  sortModes: 'sortModes',
   subtitles: 'subtitles',
   subtitleCache: 'subtitleCache',
 } as const

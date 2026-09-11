@@ -45,6 +45,7 @@ export interface SeriesItem {
   year: string | null
   plot: string | null
   seriesId: string
+  added: number | null
 }
 
 export type CatalogItem = LiveChannel | VodItem | SeriesItem

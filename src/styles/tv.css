@@ -1,39 +1,90 @@
-/* Shared TV chrome: focus rings, buttons, panels, scrollless layouts. */
+/* Shared TV chrome: focus rings, buttons, chips, panels. */
 
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--sp-2);
-  min-height: 3rem;
+  min-height: 3.1rem;
   padding: 0 var(--sp-5);
   border-radius: var(--r-pill);
-  background: var(--panel-soft);
+  background: var(--surface-hi);
   border: 2px solid transparent;
   font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
   transition:
     background var(--t-fast),
     border-color var(--t-fast),
-    transform var(--t-fast);
+    transform var(--t-fast),
+    box-shadow var(--t-fast);
 }
 .btn--primary {
   background: var(--accent);
-  color: #06210f;
+  color: var(--accent-ink);
+}
+.btn--ghost {
+  background: transparent;
+  border-color: var(--line-strong);
 }
 .btn--danger {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fecaca;
+  background: rgba(255, 92, 92, 0.16);
+  color: #ffb4b4;
 }
 .btn:focus,
 .btn.is-focused {
   border-color: var(--focus-ring);
-  box-shadow: 0 0 0 0.25rem var(--focus-glow);
+  box-shadow: 0 0 0 0.22rem var(--focus-glow);
   transform: scale(1.04);
+}
+.btn[disabled] {
+  opacity: 0.45;
+}
+.btn .icon {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* A selectable pill in a toolbar (sort, tabs inside a view). */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.6rem;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  border: 2px solid var(--line);
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition:
+    background var(--t-fast),
+    color var(--t-fast),
+    border-color var(--t-fast);
+}
+.chip.is-active {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.chip:focus {
+  color: var(--text-primary);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 0.2rem var(--focus-glow);
+}
+.chip.is-active:focus {
+  color: var(--accent-ink);
+}
+.chip .icon {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .panel {
-  background: var(--panel);
+  background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
 }
@@ -41,19 +92,40 @@
 .field {
   display: block;
   width: 100%;
-  min-height: 3.5rem;
+  min-height: 3.4rem;
   padding: 0 var(--sp-4);
   border-radius: var(--r-md);
   background: var(--bg-2);
   border: 2px solid var(--line);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
+  transition:
+    border-color var(--t-fast),
+    box-shadow var(--t-fast);
 }
 .field:focus {
   border-color: var(--focus-ring);
-  box-shadow: 0 0 0 0.25rem var(--focus-glow);
+  box-shadow: 0 0 0 0.2rem var(--focus-glow);
 }
 .field::placeholder {
   color: var(--text-muted);
+}
+
+/* Search box: an icon inside a field. */
+.search {
+  position: relative;
+}
+.search .icon {
+  position: absolute;
+  left: var(--sp-4);
+  top: 50%;
+  width: 1.2rem;
+  height: 1.2rem;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.search .field {
+  padding-left: 3rem;
 }
 
 .muted {
@@ -63,6 +135,38 @@
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
+.eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.55rem;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--line-strong);
+  color: var(--text-secondary);
+}
+.badge--live {
+  color: #fff;
+  background: var(--live);
+  border-color: transparent;
+}
+.badge--accent {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.badge--warn {
+  color: var(--warning);
+  border-color: var(--warning);
+}
 
 .spinner {
   width: 2.5rem;
@@ -71,6 +175,11 @@
   border: 0.3rem solid var(--line-strong);
   border-top-color: var(--accent);
   animation: spin 0.9s linear infinite;
+}
+.spinner--sm {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-width: 0.2rem;
 }
 @keyframes spin {
   to {
@@ -88,11 +197,86 @@
   padding: var(--sp-6);
 }
 
+.loading-block {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-4);
+  color: var(--text-secondary);
+  font-size: var(--fs-lg);
+}
+
+/* View chrome: a title row with tools, then the content. */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  height: 100%;
+  min-height: 0;
+}
+.view__bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-5);
+}
+.view__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+}
+.view__count {
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.view__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.view__body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Progress bars */
+.bar {
+  height: 0.35rem;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 160ms ease;
 }
 .fade-enter-from,
 .fade-leave-to {
+  opacity: 0;
+}
+.rise-enter-active {
+  transition:
+    opacity 200ms ease,
+    transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rise-leave-active {
+  transition: opacity 120ms ease;
+}
+.rise-enter-from {
+  opacity: 0;
+  transform: translateY(1rem);
+}
+.rise-leave-to {
   opacity: 0;
 }

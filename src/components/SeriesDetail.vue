@@ -6,6 +6,7 @@ import { usePlayer } from '@/composables/usePlayer'
 import { useTvNavigation } from '@/composables/useTvNavigation'
 import type { Episode, SeriesDetails, SeriesItem } from '@/types/iptv'
 import VirtualList from './VirtualList.vue'
+import Icon from './Icon.vue'
 
 const props = defineProps<{ item: SeriesItem }>()
 const emit = defineEmits<{ close: [] }>()
@@ -68,9 +69,9 @@ const backdrop = computed(() => details.value?.backdrop ?? props.item.poster)
 
         <div class="detail__actions">
           <button class="btn" data-focus-id="detail-fav" @click="catalog.toggleFavorite(item)">
-            {{ catalog.isFavorite(item.id) ? '♥ Remove favourite' : '♡ Add favourite' }}
+            <Icon :name="catalog.isFavorite(item.id) ? 'heart-filled' : 'heart'" /> {{ catalog.isFavorite(item.id) ? 'Favourite' : 'Add favourite' }}
           </button>
-          <button class="btn" data-focus-id="detail-back" @click="emit('close')">Back</button>
+          <button class="btn btn--ghost" data-focus-id="detail-back" @click="emit('close')"><Icon name="back" /> Back</button>
         </div>
 
         <p v-if="loading" class="tiny">Loading episodes…</p>
@@ -80,8 +81,8 @@ const backdrop = computed(() => details.value?.backdrop ?? props.item.poster)
             <button
               v-for="(s, i) in details.seasons"
               :key="s.number"
-              class="btn"
-              :class="{ 'btn--primary': i === seasonIdx }"
+              class="chip"
+              :class="{ 'is-active': i === seasonIdx }"
               :data-focus-id="`season-${i}`"
               @click="selectSeason(i)"
             >
@@ -121,6 +122,10 @@ const backdrop = computed(() => details.value?.backdrop ?? props.item.poster)
 .ep.is-cursor {
   background: var(--focus-bg);
   border-color: var(--focus-ring);
+}
+.detail__episodes {
+  background: rgba(10, 10, 13, 0.7);
+  backdrop-filter: blur(10px);
 }
 .ep__num {
   color: var(--text-muted);

@@ -25,7 +25,6 @@ const epg = useEpg()
 const subs = useSubtitles()
 const toast = useToast()
 
-const host = ref<HTMLElement | null>(null)
 const overlayVisible = ref(false)
 const listOpen = ref(false)
 const listCursor = ref(0)
@@ -212,7 +211,7 @@ function onKey(e: KeyboardEvent): boolean {
 
   switch (code) {
     case KEY.BACK:
-      player.close()
+      player.leaveFullscreen()
       return true
     case KEY.OK:
       if (player.state.value === 'error') {
@@ -278,7 +277,7 @@ function onKey(e: KeyboardEvent): boolean {
       return true
   }
   if (e.key === 'Escape') {
-    player.close()
+    player.leaveFullscreen()
     return true
   }
   if (e.key === ' ') {
@@ -290,7 +289,6 @@ function onKey(e: KeyboardEvent): boolean {
 }
 
 onMounted(() => {
-  host.value?.appendChild(player.video)
   setKeyInterceptor(onKey)
   showOverlay()
 })
@@ -318,7 +316,6 @@ const stateLabel = computed(() => {
 
 <template>
   <div class="player" @click="showOverlay()">
-    <div ref="host" class="player__video"></div>
 
     <div v-if="stateLabel" class="player__state" :class="{ 'is-error': player.state.value === 'error' }">
       <span v-if="player.state.value === 'loading' || player.state.value === 'buffering'" class="spinner"></span>
@@ -415,19 +412,12 @@ const stateLabel = computed(() => {
 </template>
 
 <style scoped>
+/* Transparent: the video stage sits underneath at inset 0. */
 .player {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: #000;
-}
-.player__video,
-.player__video :deep(video) {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: #000;
+  background: transparent;
 }
 .player__state {
   position: absolute;
@@ -463,12 +453,13 @@ const stateLabel = computed(() => {
   right: 0;
   bottom: 0;
   padding: var(--sp-6) var(--safe-x) var(--safe-y);
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  background: var(--grad-osd);
 }
 .overlay h2 {
   font-size: var(--fs-2xl);
   font-weight: 800;
   line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 .overlay__live {
   display: grid;
@@ -544,7 +535,8 @@ const stateLabel = computed(() => {
   display: flex;
   flex-direction: column;
   padding: var(--sp-3) 0 var(--sp-2);
-  background: rgba(10, 14, 22, 0.94);
+  background: rgba(8, 8, 10, 0.94);
+  backdrop-filter: blur(12px);
 }
 .chlist h3 {
   padding: 0 var(--sp-5) var(--sp-3);

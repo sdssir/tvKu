@@ -137,8 +137,8 @@ async function submit() {
   gap: var(--sp-8);
   padding: var(--safe-y) var(--safe-x);
   background:
-    radial-gradient(60rem 40rem at 20% 30%, rgba(34, 197, 94, 0.12), transparent 60%),
-    radial-gradient(50rem 40rem at 90% 80%, rgba(56, 189, 248, 0.1), transparent 60%),
+    radial-gradient(60rem 40rem at 20% 30%, rgba(242, 181, 68, 0.1), transparent 60%),
+    radial-gradient(50rem 40rem at 90% 80%, rgba(255, 255, 255, 0.05), transparent 60%),
     var(--bg-0);
 }
 .login__brand {
@@ -147,9 +147,9 @@ async function submit() {
 }
 .login__brand h1 {
   margin-top: var(--sp-4);
-  font-size: var(--fs-3xl);
+  font-size: var(--fs-4xl);
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 .login__brand img {
   margin: 0 auto;
@@ -182,10 +182,7 @@ async function submit() {
   justify-content: center;
   min-height: 3.5rem;
 }
-.spinner--sm {
-  width: 1.2rem;
-  height: 1.2rem;
-  border-width: 0.2rem;
-  border-top-color: #06210f;
+.login__submit .spinner--sm {
+  border-top-color: var(--accent-ink);
 }
 </style>

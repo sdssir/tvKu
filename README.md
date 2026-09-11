@@ -6,14 +6,21 @@ browses Live TV, Movies and Series from the remote — no mouse required.
 
 **Features**
 
-- Live TV: category rail, channel list, now/next programme guide (Xtream `get_short_epg`),
-  full-screen playback with ▲▼ / CH± zapping, an OK-to-open channel list and digit entry.
-- Movies: category rail, poster grid, detail page (plot, cast, rating, duration), resume where
-  you left off.
+- Live TV: category rail, channel list, now/next programme guide (Xtream `get_short_epg`), and a
+  **preview panel** — OK on a channel plays it there with sound, OK again (or OK on the preview)
+  goes full screen, Back returns to the preview. Full screen has ▲▼ / CH± zapping, an
+  OK-to-open channel list and digit entry.
+- Movies: poster grid, detail page (plot, cast, rating, duration), resume where you left off.
 - Series: seasons and episodes, auto-plays the next episode, remembers position per episode.
-- Favourites and Recently watched (per channel / title), Search across everything.
-- Settings: account status and expiry, connection count, live stream format (HLS / MPEG-TS),
-  refresh lists, sign out.
+- Every browsing tab has its own **search** and **sort** (Live: provider order · HD first · A–Z;
+  Movies and Series: latest added · A–Z · top rated · provider order).
+- Subtitles from OpenSubtitles, matched by TMDB id and ranked by quality (see below).
+- Favourites and Recently watched; Settings with account status, stream format, subtitles.
+
+**Design.** A left navigation rail and true-black surfaces (the target panel is a WOLED, so black
+costs nothing and everything else floats), one warm accent for the active state, a white focus
+ring that stays visible over any poster or video, and bundled Inter / Outfit type so the TV never
+waits on a font CDN. Nothing below 15 px at 1080p.
 
 ## Tech stack
 
@@ -47,6 +54,16 @@ npm run webos:inspect   # remote Chrome DevTools
 Requires `@webosose/ares-cli` and a TV registered with `ares-setup-device` (Developer Mode on
 the TV). The walkthrough in the sibling radio app's `docs/WEBOS_DEPLOY.md` applies unchanged;
 only the app id (`com.jul.tvku`) differs.
+
+## The single video element
+
+webOS allows one media pipeline per app, will not start loading a `<video>` that is not in the
+document, and restarts the pipeline if the element moves in the DOM. So `usePlayer` keeps one
+`<video>` inside a fixed stage under the UI for the life of the app, and "preview" versus "full
+screen" is only the stage's rectangle: the Live TV preview box is a transparent hole the stage
+shows through (nothing between it and the stage may paint a background), and full screen is the
+stage at `inset: 0` with the shell set to `visibility: hidden`. Switching modes never touches
+`src`, so the stream is continuous.
 
 ## Notes on providers
 
