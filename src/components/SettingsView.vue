@@ -4,11 +4,24 @@ import { APP } from '@/config/app'
 import { useAccount } from '@/composables/useAccount'
 import { useCatalog } from '@/composables/useCatalog'
 import { useToast } from '@/composables/useToast'
+import { useSubtitles } from '@/composables/useSubtitles'
+import { ref } from 'vue'
 
 const emit = defineEmits<{ signedOut: [] }>()
 const acct = useAccount()
 const catalog = useCatalog()
 const toast = useToast()
+const subs = useSubtitles()
+const subsStatus = ref<string | null>(null)
+
+async function testSubs() {
+  subsStatus.value = 'Checking…'
+  try {
+    subsStatus.value = await subs.test()
+  } catch (err) {
+    subsStatus.value = (err as Error).message
+  }
+}
 
 const expires = computed(() => {
   const at = acct.account.value?.expiresAt
@@ -82,12 +95,41 @@ function signOut() {
       <p class="tiny">The TV's own picture processing (Super Resolution, AI Picture Pro) already applies to this app; set it under ⚙ → Picture while a channel is playing.</p>
     </section>
 
+    <section class="panel settings__card">
+      <h2>Subtitles (OpenSubtitles)</h2>
+      <p class="muted">
+        Movies and episodes can pull subtitles from opensubtitles.com. Register a free API key at opensubtitles.com/consumers; a user login raises the daily download limit.
+      </p>
+      <label class="settings__label">API key</label>
+      <input v-model.trim="subs.settings.value.apiKey" class="field" data-focus-id="subs-key" type="text" autocapitalize="off" autocomplete="off" placeholder="Paste your API key" />
+      <div class="settings__two">
+        <div>
+          <label class="settings__label">Username (optional)</label>
+          <input v-model.trim="subs.settings.value.username" class="field" data-focus-id="subs-user" type="text" autocapitalize="off" autocomplete="off" />
+        </div>
+        <div>
+          <label class="settings__label">Password (optional)</label>
+          <input v-model="subs.settings.value.password" class="field" data-focus-id="subs-pass" type="password" autocomplete="off" />
+        </div>
+      </div>
+      <label class="settings__label">Languages, in order of preference (ISO codes)</label>
+      <input v-model.trim="subs.settings.value.languages" class="field" data-focus-id="subs-langs" type="text" autocapitalize="off" autocomplete="off" placeholder="en,ms" />
+      <div class="settings__actions">
+        <button class="btn" data-focus-id="subs-test" :disabled="!subs.configured.value" @click="testSubs">Test connection</button>
+        <span v-if="subsStatus" class="muted">{{ subsStatus }}</span>
+      </div>
+      <p class="tiny">While a movie plays: ▼ opens the subtitle list · red / green shift timing by 0.5 s. Your choice is remembered per title.</p>
+    </section>
+
     <p class="tiny">{{ APP.title }} {{ APP.version }} · {{ APP.id }}</p>
   </div>
 </template>
 
 <style scoped>
 .settings {
+  overflow-y: auto;
+  height: 100%;
+  padding-right: var(--sp-2);
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
@@ -122,7 +164,17 @@ dd {
 }
 .settings__actions {
   display: flex;
+  align-items: center;
   gap: var(--sp-3);
   margin-top: var(--sp-2);
+}
+.settings__label {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.settings__two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
 }
 </style>

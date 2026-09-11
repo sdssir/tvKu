@@ -46,6 +46,12 @@ const isOpen = ref(false)
 /** Decoded frame size of the current stream, as the TV reports it. */
 const resolution = ref<{ w: number; h: number } | null>(null)
 
+/** Subtitles register this: called with the item key on a VOD/episode start, null on close. */
+let onSessionStart: ((resumeKey: string | null) => void) | null = null
+export function setSessionStartHook(fn: ((resumeKey: string | null) => void) | null): void {
+  onSessionStart = fn
+}
+
 let retryTimer: ReturnType<typeof setTimeout> | null = null
 let retryAttempt = 0
 let lastSave = 0
@@ -230,6 +236,7 @@ async function playLive(list: LiveChannel[], index: number): Promise<void> {
   const channel = list[index]
   if (!channel) return
   session.value = { kind: 'live', channel, list, index }
+  onSessionStart?.(null)
   isOpen.value = true
   retryAttempt = 0
   useCatalog().markWatched(channel)
@@ -243,6 +250,7 @@ async function playVod(item: VodItem): Promise<void> {
   retryAttempt = 0
   const cat = useCatalog()
   cat.markWatched(item)
+  onSessionStart?.(item.id)
   await nextTick()
   await start(cat.positionFor(item.id)?.at ?? 0)
 }
@@ -255,6 +263,7 @@ async function playEpisode(series: SeriesItem, episodes: Episode[], index: numbe
   retryAttempt = 0
   const cat = useCatalog()
   cat.markWatched(series)
+  onSessionStart?.(`ep:${episode.id}`)
   await nextTick()
   await start(cat.positionFor(`ep:${episode.id}`)?.at ?? 0)
 }
@@ -301,6 +310,7 @@ function close(): void {
   video.removeAttribute('src')
   video.load()
   session.value = null
+  onSessionStart?.(null)
   state.value = 'idle'
   errorMessage.value = null
   resolution.value = null

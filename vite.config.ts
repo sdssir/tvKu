@@ -24,7 +24,20 @@ function devProxy(): Plugin {
           return
         }
         try {
-          const upstream = await fetch(target, { redirect: 'follow' })
+          const chunks: Buffer[] = []
+          for await (const c of req) chunks.push(c as Buffer)
+          const headers: Record<string, string> = {}
+          for (const h of ['api-key', 'authorization', 'content-type', 'accept', 'x-user-agent']) {
+            const v = req.headers[h]
+            if (typeof v === 'string') headers[h] = v
+          }
+          const method = req.method ?? 'GET'
+          const upstream = await fetch(target, {
+            method,
+            headers,
+            body: method === 'GET' || method === 'HEAD' ? undefined : Buffer.concat(chunks),
+            redirect: 'follow',
+          })
           res.statusCode = upstream.status
           res.setHeader('content-type', upstream.headers.get('content-type') ?? 'application/octet-stream')
           res.end(Buffer.from(await upstream.arrayBuffer()))

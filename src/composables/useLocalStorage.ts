@@ -95,4 +95,6 @@ export const KEYS = {
   catalog: 'catalog',
   quality: 'quality',
   preferHd: 'preferHd',
+  subtitles: 'subtitles',
+  subtitleCache: 'subtitleCache',
 } as const

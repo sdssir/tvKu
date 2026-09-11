@@ -6,6 +6,9 @@ import { usePlayer } from '@/composables/usePlayer'
 import { fmtTime, progressOf, useEpg } from '@/composables/useEpg'
 import { KEY, setKeyInterceptor } from '@/composables/useTvNavigation'
 import { qualityLabel } from '@/services/quality'
+import { useSubtitles } from '@/composables/useSubtitles'
+import { useToast } from '@/composables/useToast'
+import type { SubtitleQuery } from '@/services/opensubtitles'
 import VirtualList from './VirtualList.vue'
 import ChannelRow from './ChannelRow.vue'
 
@@ -13,12 +16,15 @@ import ChannelRow from './ChannelRow.vue'
  * Full-screen playback. Owns every remote key while open:
  *
  *  Live   Up/Down, CH+/-  zap · OK  channel list · digits  go to channel number
- *  VOD    OK / ⏯  play-pause · Left/Right  ±10 s · ⏪/⏩  ±60 s
+ *  VOD    OK / ⏯  play-pause · Left/Right  ±10 s · ⏪/⏩  ±60 s · Down  subtitles
+ *         Red / Green  subtitle delay −/+ 0.5 s
  *  Both   Info / any key  show the overlay · Back  close (or close the list)
  */
 const player = usePlayer()
 const catalog = useCatalog()
 const epg = useEpg()
+const subs = useSubtitles()
+const toast = useToast()
 
 const host = ref<HTMLElement | null>(null)
 const overlayVisible = ref(false)
@@ -88,6 +94,56 @@ function pickFromList(i: number) {
   player.zapTo(i)
 }
 
+/* ── subtitle picker ────────────────────────────────────────────────── */
+
+const subOpen = ref(false)
+const subCursor = ref(0)
+
+/** Item key used for remembering the choice, and the search to run. */
+const subTarget = computed<{ id: string; query: SubtitleQuery } | null>(() => {
+  const s = player.session.value
+  if (!s || s.kind === 'live') return null
+  if (s.kind === 'vod') return { id: s.item.id, query: { kind: 'movie', title: s.item.name, year: s.item.year } }
+  return {
+    id: `ep:${s.episode.id}`,
+    query: { kind: 'episode', title: s.series.name, season: s.episode.seasonNumber, episode: s.episode.episodeNumber },
+  }
+})
+
+/** Row 0 is "Off"; the rest are search hits. */
+const subRows = computed(() => subs.results.value.length + 1)
+
+function openSubs() {
+  if (!subTarget.value) return
+  subOpen.value = true
+  subCursor.value = 0
+  if (!subs.results.value.length && !subs.searching.value) void subs.search(subTarget.value.query)
+}
+function closeSubs() {
+  subOpen.value = false
+}
+async function pickSub() {
+  const target = subTarget.value
+  if (!target) return
+  if (subCursor.value === 0) {
+    subs.turnOff(target.id)
+    closeSubs()
+    toast.show('Subtitles off')
+    return
+  }
+  const hit = subs.results.value[subCursor.value - 1]
+  if (!hit) return
+  toast.show('Downloading subtitles…')
+  const ok = await subs.choose(target.id, hit)
+  if (ok) {
+    closeSubs()
+    const left = subs.remaining.value
+    toast.show(`Subtitles: ${hit.language.toUpperCase()} · ${hit.release}${left !== null ? ` (${left} downloads left today)` : ''}`)
+  } else toast.show(subs.error.value ?? 'Could not load subtitles', 'bad')
+}
+
+const subLines = computed(() => subs.currentText.value.split('\n'))
+
 /* ── digit entry ────────────────────────────────────────────────────── */
 
 function pushDigit(d: string) {
@@ -110,6 +166,25 @@ function onKey(e: KeyboardEvent): boolean {
   const isLive = !!live.value
 
   if (e.repeat && (code === KEY.OK || code === KEY.BACK || e.key === 'Enter' || e.key === 'Escape')) return true
+
+  if (subOpen.value) {
+    switch (code) {
+      case KEY.UP:
+        subCursor.value = Math.max(0, subCursor.value - 1)
+        return true
+      case KEY.DOWN:
+        subCursor.value = Math.min(subRows.value - 1, subCursor.value + 1)
+        return true
+      case KEY.OK:
+        void pickSub()
+        return true
+      case KEY.BACK:
+        closeSubs()
+        return true
+    }
+    if (e.key === 'Escape') closeSubs()
+    return true
+  }
 
   if (listOpen.value) {
     switch (code) {
@@ -176,7 +251,14 @@ function onKey(e: KeyboardEvent): boolean {
     case KEY.DOWN:
     case KEY.CH_DOWN:
       if (isLive) player.zap(-1)
-      else showOverlay()
+      else openSubs()
+      return true
+    case KEY.RED:
+    case KEY.GREEN:
+      if (!isLive && subs.active.value) {
+        subs.nudge(code === KEY.RED ? -0.5 : 0.5)
+        toast.show(`Subtitle delay ${subs.offset.value >= 0 ? '+' : ''}${subs.offset.value.toFixed(1)} s`)
+      }
       return true
     case KEY.LEFT:
       if (!isLive) player.seekBy(-10)
@@ -248,6 +330,10 @@ const stateLabel = computed(() => {
 
     <div v-if="digits" class="player__digits">{{ digits }}</div>
 
+    <div v-if="subs.currentText.value" class="subs" :class="{ 'is-raised': overlayVisible }" aria-live="off">
+      <span v-for="(line, i) in subLines" :key="i" class="subs__line">{{ line }}</span>
+    </div>
+
     <Transition name="fade">
       <div v-if="overlayVisible && !listOpen" class="overlay">
         <div v-if="live" class="overlay__live">
@@ -277,9 +363,37 @@ const stateLabel = computed(() => {
             <div class="bar bar--big"><span :style="{ width: `${progressPct}%` }"></span></div>
             <span class="overlay__time">{{ fmtClock(player.duration.value) }}</span>
           </div>
-          <p class="overlay__hint tiny">OK play/pause · ◀▶ ±10 s · ⏪⏩ ±60 s · BACK exit</p>
+          <p class="overlay__hint tiny">
+            OK play/pause · ◀▶ ±10 s · ⏪⏩ ±60 s · ▼ subtitles<template v-if="subs.active.value"> ({{ subs.active.value.language.toUpperCase() }})</template> · BACK exit
+          </p>
         </div>
       </div>
+    </Transition>
+
+    <Transition name="fade">
+      <aside v-if="subOpen" class="chlist panel">
+        <h3>Subtitles</h3>
+        <p v-if="!subs.configured.value" class="chlist__note">Add an OpenSubtitles API key under Settings to search for subtitles.</p>
+        <p v-else-if="subs.searching.value" class="chlist__note"><span class="spinner spinner--sm"></span> Searching OpenSubtitles…</p>
+        <p v-else-if="subs.error.value" class="chlist__note">{{ subs.error.value }}</p>
+        <div class="sublist">
+          <div class="sub" :class="{ 'is-cursor': subCursor === 0, 'is-active': !subs.active.value }">
+            <span class="sub__lang">—</span>
+            <span class="sub__name">Off</span>
+          </div>
+          <div
+            v-for="(hit, i) in subs.results.value"
+            :key="hit.fileId"
+            class="sub"
+            :class="{ 'is-cursor': subCursor === i + 1 }"
+            @click="subCursor = i + 1; pickSub()"
+          >
+            <span class="sub__lang">{{ hit.language.toUpperCase() }}</span>
+            <span class="sub__name">{{ hit.release }}<span v-if="hit.hearingImpaired"> · HI</span></span>
+            <span class="tiny">{{ hit.matched }} · ⬇ {{ hit.downloads.toLocaleString() }}</span>
+          </div>
+        </div>
+      </aside>
     </Transition>
 
     <Transition name="fade">
@@ -430,5 +544,82 @@ const stateLabel = computed(() => {
 .chlist h3 {
   padding: 0 var(--sp-5) var(--sp-3);
   font-size: var(--fs-lg);
+}
+.chlist__note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-5) var(--sp-3);
+  color: var(--text-secondary);
+}
+.spinner--sm {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-width: 0.2rem;
+}
+.sublist {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.sub {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--sp-3);
+  align-items: center;
+  margin: 0 var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+}
+.sub.is-cursor {
+  background: var(--focus-bg);
+  border-color: var(--focus-ring);
+}
+.sub.is-active .sub__name {
+  color: var(--accent);
+}
+.sub__lang {
+  grid-row: 1 / 3;
+  font-weight: 800;
+  color: var(--accent-2);
+}
+.sub__name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Subtitle text: large, outlined, readable over anything. */
+.subs {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-align: center;
+  pointer-events: none;
+  transition: bottom 160ms ease;
+}
+.subs.is-raised {
+  bottom: 11rem;
+}
+.subs__line {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 2.3rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-shadow:
+    0 0 0.35rem #000,
+    0.08rem 0.08rem 0.15rem #000;
 }
 </style>
