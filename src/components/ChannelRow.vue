@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { LiveChannel } from '@/types/iptv'
+import { nameQualityRank } from '@/services/quality'
 
 const props = defineProps<{ channel: LiveChannel; isCursor: boolean; isMarked?: boolean; favorite: boolean; playing?: boolean; quality?: string | null }>()
 const broken = ref(false)
 watch(() => props.channel.logo, () => (broken.value = false))
+/** Measured size wins; otherwise what the name claims (4K / HD), else nothing. */
+const tag = computed(() => {
+  if (props.quality) return props.quality
+  const r = nameQualityRank(props.channel.name)
+  return r === 0 ? '4K' : r <= 2 ? 'HD' : null
+})
 </script>
 
 <template>
@@ -15,46 +22,53 @@ watch(() => props.channel.logo, () => (broken.value = false))
     </span>
     <span class="row__name">{{ channel.name }}</span>
     <span v-if="playing" class="row__eq" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span v-if="quality" class="badge">{{ quality }}</span>
     <span v-if="favorite" class="row__fav">♥</span>
+    <span v-if="tag" class="badge row__tag">{{ tag }}</span>
   </div>
 </template>
 
 <style scoped>
 .row {
   display: grid;
-  grid-template-columns: 3.2rem 4.2rem 1fr auto auto auto;
+  grid-template-columns: 2.4rem 4.2rem 1fr auto auto auto;
   align-items: center;
   gap: var(--sp-3);
-  height: 100%;
-  margin: 0 var(--sp-2);
-  padding: 0 var(--sp-3);
+  height: calc(100% - 0.5rem);
+  margin: 0.25rem var(--sp-3);
+  padding: 0 var(--sp-3) 0 var(--sp-4);
   border-radius: var(--r-md);
-  border: 2px solid transparent;
-  transition: background var(--t-fast);
+  background: var(--card);
+  border: 2px solid var(--card-line);
+  transition:
+    background var(--t-fast),
+    border-color var(--t-fast),
+    box-shadow var(--t-fast);
 }
 .row.is-marked {
   background: var(--surface-hi);
+  border-color: var(--line-strong);
 }
 .row.is-cursor {
   background: var(--focus-bg);
   border-color: var(--focus-ring);
+  box-shadow: 0 0 0 0.15rem var(--focus-glow), 0 0 1.4rem var(--focus-glow);
 }
 .row.is-playing .row__name {
   color: var(--accent);
 }
 .row__num {
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-  text-align: right;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  font-weight: 600;
 }
 .row__logo {
   width: 4.2rem;
-  height: 2.9rem;
+  height: 3rem;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 0.25rem;
+  background: #fff;
   border-radius: var(--r-sm);
 }
 .row__logo img {
@@ -63,6 +77,7 @@ watch(() => props.channel.logo, () => (broken.value = false))
   object-fit: contain;
 }
 .row__name {
+  font-size: var(--fs-lg);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -70,6 +85,11 @@ watch(() => props.channel.logo, () => (broken.value = false))
 }
 .row__fav {
   color: var(--live);
+}
+.row__tag {
+  color: var(--text-primary);
+  border-color: var(--line-strong);
+  background: rgba(0, 0, 0, 0.35);
 }
 .row__eq {
   display: inline-flex;

@@ -8,6 +8,10 @@ defineProps<{
   kind: ContentKind
   title: string
   count: number
+  /** Second line under the count, e.g. "Malaysia & International". */
+  subtitle?: string
+  /** Noun for the count line: "Channels", "Movies", "Series". */
+  noun?: string
   query: string
   sort: SortId
   placeholder?: string
@@ -19,7 +23,10 @@ const emit = defineEmits<{ 'update:query': [q: string]; 'update:sort': [s: SortI
   <header class="view__bar">
     <h1 class="view__title">
       {{ title }}
-      <span class="view__count">{{ count.toLocaleString() }}</span>
+      <span class="view__count">
+        <b>{{ count.toLocaleString() }} {{ noun ?? '' }}</b>
+        <span v-if="subtitle">{{ subtitle }}</span>
+      </span>
     </h1>
     <div class="search">
       <Icon name="search" />
@@ -44,6 +51,7 @@ const emit = defineEmits<{ 'update:query': [q: string]; 'update:sort': [s: SortI
         :data-focus-id="`${kind}-sort-${opt.id}`"
         @click="emit('update:sort', opt.id)"
       >
+        <Icon v-if="opt.id === sort" name="crown" />
         {{ opt.label }}
       </button>
     </div>
@@ -52,10 +60,9 @@ const emit = defineEmits<{ 'update:query': [q: string]; 'update:sort': [s: SortI
 
 <style scoped>
 .view__bar {
-  grid-template-columns: auto minmax(20rem, 30rem) auto;
+  grid-template-columns: auto minmax(22rem, 1fr) auto;
 }
 .tools__icon {
-  color: var(--text-muted);
-  margin-right: var(--sp-1);
+  display: none;
 }
 </style>

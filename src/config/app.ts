@@ -3,6 +3,10 @@ export const APP = {
   id: 'com.jul.tvku',
   version: '1.1.0',
   title: 'tvKu',
+  tagline: 'TV for Everyone',
+  railNote: 'Malaysian Entertainment Always With You',
+  slogan: 'Good shows · A brighter tomorrow',
+  liveSubtitle: 'Malaysia & International',
   storagePrefix: 'tvku:v1:',
 } as const
 

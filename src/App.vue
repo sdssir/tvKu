@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 import { useTvNavigation } from '@/composables/useTvNavigation'
 import { KEYS, useStoredRef } from '@/composables/useLocalStorage'
 import type { CatalogItem, SeriesItem, VodItem } from '@/types/iptv'
+import { APP } from '@/config/app'
 import LoginScreen from '@/components/LoginScreen.vue'
 import SideNav from '@/components/SideNav.vue'
 import LiveView from '@/components/LiveView.vue'
@@ -102,6 +103,7 @@ watch(
   <!-- Hidden (not removed) while full screen, so the Live tab keeps its state and the preview rect. -->
   <div v-else class="shell" :class="{ 'is-covered': player.isOpen.value }" :inert="detail !== null || player.isOpen.value ? true : undefined">
     <SideNav :active="tab" @change="setTab" />
+    <p class="shell__slogan">{{ APP.slogan }}<span></span></p>
     <main class="shell__main">
       <div v-if="catalog.loading.value.live && !catalog.live.value.length" class="loading-block">
         <span class="spinner"></span>
@@ -145,6 +147,25 @@ watch(
 .shell__main {
   min-width: 0;
   min-height: 0;
-  padding: var(--safe-y) var(--safe-x) var(--safe-y) var(--sp-6);
+  padding: var(--sp-7) var(--safe-x) var(--safe-y) var(--sp-6);
+}
+.shell__slogan {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--safe-x);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.shell__slogan span {
+  width: 2rem;
+  height: 0.2rem;
+  border-radius: var(--r-pill);
+  background: var(--accent);
 }
 </style>

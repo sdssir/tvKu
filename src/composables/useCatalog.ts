@@ -165,7 +165,9 @@ export function useCatalog() {
     let items: CatalogItem[]
     if (isSearching(kind)) {
       const q = queries.value[kind].trim().toLowerCase()
-      items = listFor(kind).filter((x) => x.name.toLowerCase().includes(q))
+      // A category name is a fair search target too ("sport" should list every sports channel).
+      const catHit = new Set(categories.value[kind].filter((c) => c.name.toLowerCase().includes(q)).map((c) => c.id))
+      items = listFor(kind).filter((x) => x.name.toLowerCase().includes(q) || catHit.has(x.categoryId))
     } else {
       switch (categoryId) {
         case ALL_CATEGORY:

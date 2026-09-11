@@ -136,10 +136,7 @@ async function submit() {
   align-items: center;
   gap: var(--sp-8);
   padding: var(--safe-y) var(--safe-x);
-  background:
-    radial-gradient(60rem 40rem at 20% 30%, rgba(242, 181, 68, 0.1), transparent 60%),
-    radial-gradient(50rem 40rem at 90% 80%, rgba(255, 255, 255, 0.05), transparent 60%),
-    var(--bg-0);
+  background: transparent;
 }
 .login__brand {
   justify-self: center;

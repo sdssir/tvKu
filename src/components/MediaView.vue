@@ -56,6 +56,8 @@ function onBrowseCategory(i: number) {
       :kind="kind"
       :title="title"
       :count="items.length"
+      :noun="kind === 'vod' ? 'Movies' : 'Series'"
+      :subtitle="`${catalog.categories.value[kind].length} categories`"
       :query="catalog.queries.value[kind]"
       :sort="catalog.sortModes.value[kind]"
       :placeholder="`Search ${title.toLowerCase()}`"

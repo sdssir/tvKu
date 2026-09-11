@@ -20,10 +20,12 @@ browses Live TV, Movies and Series from the remote — no mouse required.
 - Subtitles from OpenSubtitles, matched by TMDB id and ranked by quality (see below).
 - Favourites and Recently watched; Settings with account status, stream format, subtitles.
 
-**Design.** A left navigation rail and true-black surfaces (the target panel is a WOLED, so black
-costs nothing and everything else floats), one warm accent for the active state, a white focus
-ring that stays visible over any poster or video, and bundled Inter / Outfit type so the TV never
-waits on a font CDN. Nothing below 15 px at 1080p.
+**Design.** Follows the reference in `assets/design.png`: a left navigation rail over the
+Kuala Lumpur night plate (`assets/backgroud.png`, baked with its scrim into
+`public/assets/bg.webp` so the DOM can stay transparent for the video preview hole), translucent
+cards, one warm gold used for the active state and the focus ring, category glyphs guessed from
+category names, and bundled Inter / Outfit type so the TV never waits on a font CDN. Nothing
+below 15 px at 1080p.
 
 ## Tech stack
 

@@ -9,9 +9,12 @@ const emit = defineEmits<{ change: [id: NavTabId] }>()
 
 const acct = useAccount()
 const clock = ref('')
+const date = ref('')
 let timer: ReturnType<typeof setInterval> | null = null
 function tick() {
-  clock.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const now = new Date()
+  clock.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  date.value = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 onMounted(() => {
   tick()
@@ -25,8 +28,11 @@ onBeforeUnmount(() => {
 <template>
   <nav class="rail">
     <div class="rail__brand">
-      <img src="/icon.png" alt="" width="40" height="40" />
-      <span>{{ APP.title }}</span>
+      <img src="/icon.png" alt="" width="48" height="48" />
+      <div>
+        <span class="rail__name">{{ APP.title }}</span>
+        <span class="rail__tag">{{ APP.tagline }}</span>
+      </div>
     </div>
 
     <ul class="rail__items">
@@ -39,7 +45,10 @@ onBeforeUnmount(() => {
     </ul>
 
     <div class="rail__foot">
+      <p class="rail__note">{{ APP.railNote }}</p>
+      <span class="rail__rule"></span>
       <div class="rail__clock">{{ clock }}</div>
+      <div class="rail__date">{{ date }}</div>
       <div v-if="acct.account.value" class="tiny rail__user">{{ acct.account.value.username }}</div>
     </div>
   </nav>
@@ -52,20 +61,31 @@ onBeforeUnmount(() => {
   width: var(--rail-w);
   height: 100%;
   padding: var(--safe-y) var(--sp-4) var(--safe-y) var(--safe-x);
-  border-right: 1px solid var(--line);
 }
 .rail__brand {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-7);
+  margin-bottom: var(--sp-6);
+}
+.rail__brand img {
+  border-radius: 0.8rem;
+}
+.rail__brand > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.rail__name {
   font-family: var(--font-display);
-  font-size: var(--fs-xl);
+  font-size: var(--fs-2xl);
   font-weight: 800;
   letter-spacing: -0.02em;
 }
-.rail__brand img {
-  border-radius: 0.7rem;
+.rail__tag {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 .rail__items {
   display: flex;
@@ -95,18 +115,9 @@ onBeforeUnmount(() => {
   height: 1.5rem;
 }
 .rail__item.is-active {
-  color: var(--text-primary);
-  background: var(--surface);
-}
-.rail__item.is-active::before {
-  content: '';
-  position: absolute;
-  left: -0.35rem;
-  top: 0.8rem;
-  bottom: 0.8rem;
-  width: 0.25rem;
-  border-radius: var(--r-pill);
-  background: var(--accent);
+  color: var(--accent);
+  background: linear-gradient(90deg, rgba(242, 181, 68, 0.2), rgba(242, 181, 68, 0.06));
+  border-color: rgba(242, 181, 68, 0.35);
 }
 .rail__item:focus {
   color: var(--text-primary);
@@ -115,6 +126,23 @@ onBeforeUnmount(() => {
 }
 .rail__foot {
   margin-top: auto;
+  padding-top: var(--sp-6);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55) 40%);
+}
+.rail__note {
+  max-width: 11.5rem;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  line-height: 1.25;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+.rail__rule {
+  display: block;
+  width: 2rem;
+  height: 0.2rem;
+  margin: var(--sp-3) 0 var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--accent);
 }
 .rail__clock {
   font-family: var(--font-display);
@@ -122,6 +150,11 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+.rail__date {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
 }
 .rail__user {
   overflow: hidden;
