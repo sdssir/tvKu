@@ -91,7 +91,7 @@ watch(screen, (s) => {
 watch(
   () => player.isOpen.value,
   (open) => {
-    if (!open) void nav.reanchorFocus(null, /^live-list$|^episodes$|-grid$/)
+    if (!open) void nav.reanchorFocus(null, /^detail-play$|^episodes$|^live-list$|-grid$/)
   },
 )
 </script>
@@ -117,8 +117,9 @@ watch(
     </main>
   </div>
 
-  <VodDetail v-if="detail?.kind === 'vod'" :item="detail" @close="closeDetail" />
-  <SeriesDetail v-else-if="detail?.kind === 'series'" :item="detail" @close="closeDetail" />
+  <!-- Detail pages are opaque overlays above the video stage: hide them too while playing. -->
+  <VodDetail v-if="detail?.kind === 'vod'" :item="detail" :class="{ 'is-covered': player.isOpen.value }" @close="closeDetail" />
+  <SeriesDetail v-else-if="detail?.kind === 'series'" :item="detail" :class="{ 'is-covered': player.isOpen.value }" @close="closeDetail" />
 
   <PlayerScreen v-if="player.isOpen.value" />
   <StatusToast />
