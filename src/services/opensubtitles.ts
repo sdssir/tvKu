@@ -109,7 +109,9 @@ export class OpenSubtitles {
 
   async search(q: SubtitleQuery): Promise<SubtitleHit[]> {
     const params = new URLSearchParams({ languages: this.cfg.languages.replace(/\s/g, '') || 'en' })
-    params.set('query', cleanTitle(q.title))
+    // The API canonicalises the query to lower case and 301s if it is not;
+    // fetch would follow that, but sending it lower case saves the round-trip.
+    params.set('query', cleanTitle(q.title).toLowerCase())
     if (q.kind === 'movie') {
       params.set('type', 'movie')
       if (q.year) params.set('year', q.year)
@@ -141,7 +143,7 @@ export class OpenSubtitles {
       hits.push({
         fileId: file.file_id,
         language: (a.language ?? '?').toLowerCase(),
-        release: a.release || file.file_name || '',
+        release: (a.release || file.file_name || '').replace(/<br\s*\/?>/gi, ' ').trim(),
         downloads: a.download_count ?? 0,
         hearingImpaired: !!a.hearing_impaired,
         matched: fd.movie_name || [fd.title, fd.year].filter(Boolean).join(' ') || '',
