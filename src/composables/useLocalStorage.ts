@@ -93,4 +93,6 @@ export const KEYS = {
   streamFormat: 'streamFormat',
   lastTab: 'lastTab',
   catalog: 'catalog',
+  quality: 'quality',
+  preferHd: 'preferHd',
 } as const

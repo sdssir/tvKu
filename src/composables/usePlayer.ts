@@ -43,6 +43,8 @@ const errorMessage = ref<string | null>(null)
 const currentTime = ref(0)
 const duration = ref(0)
 const isOpen = ref(false)
+/** Decoded frame size of the current stream, as the TV reports it. */
+const resolution = ref<{ w: number; h: number } | null>(null)
 
 let retryTimer: ReturnType<typeof setTimeout> | null = null
 let retryAttempt = 0
@@ -130,6 +132,7 @@ async function start(resumeAt = 0): Promise<void> {
   errorMessage.value = null
   currentTime.value = 0
   duration.value = 0
+  resolution.value = null
   log('play', url)
   try {
     await attach(url)
@@ -179,6 +182,18 @@ video.addEventListener('pause', () => {
 video.addEventListener('waiting', () => {
   if (state.value === 'playing') state.value = 'buffering'
 })
+/** `resize` fires when the decoder settles on a size, and again on an HLS rendition switch. */
+function onResize() {
+  const w = video.videoWidth
+  const h = video.videoHeight
+  if (!w || !h) return
+  resolution.value = { w, h }
+  const s = session.value
+  if (s) useCatalog().saveQuality(s.kind === 'live' ? s.channel.id : s.kind === 'vod' ? s.item.id : `ep:${s.episode.id}`, w, h)
+}
+video.addEventListener('loadedmetadata', onResize)
+video.addEventListener('resize', onResize)
+
 video.addEventListener('durationchange', () => {
   duration.value = Number.isFinite(video.duration) ? video.duration : 0
 })
@@ -288,6 +303,7 @@ function close(): void {
   session.value = null
   state.value = 'idle'
   errorMessage.value = null
+  resolution.value = null
   isOpen.value = false
   stage.appendChild(video)
 }
@@ -308,6 +324,7 @@ export function usePlayer() {
     currentTime,
     duration,
     isOpen,
+    resolution,
     isLive: computed(() => session.value?.kind === 'live'),
     playLive,
     playVod,

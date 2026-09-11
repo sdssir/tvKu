@@ -5,6 +5,7 @@ import { useCatalog } from '@/composables/useCatalog'
 import { usePlayer } from '@/composables/usePlayer'
 import { fmtTime, progressOf, useEpg } from '@/composables/useEpg'
 import type { LiveChannel } from '@/types/iptv'
+import { qualityLabel } from '@/services/quality'
 import VirtualList from './VirtualList.vue'
 import CategoryRow from './CategoryRow.vue'
 import ChannelRow from './ChannelRow.vue'
@@ -45,6 +46,12 @@ watch(cursorChannel, (ch) => epg.request(ch), { immediate: true })
 const nowEntry = computed(() => epg.entries.value.find((e) => progressOf(e) !== null) ?? null)
 const nextEntries = computed(() => epg.entries.value.filter((e) => e.start > Date.now()).slice(0, 3))
 const nowProgress = computed(() => (nowEntry.value ? (progressOf(nowEntry.value) ?? 0) * 100 : 0))
+
+const badge = (id: string) => {
+  const q = catalog.qualityFor(id)
+  return q ? qualityLabel(q.w, q.h) : null
+}
+const cursorQuality = computed(() => (cursorChannel.value ? catalog.qualityFor(cursorChannel.value.id) : null))
 
 const playingId = computed(() => (player.session.value?.kind === 'live' ? player.session.value.channel.id : null))
 
@@ -89,6 +96,7 @@ function play(i: number) {
             :is-cursor="isCursor"
             :favorite="catalog.isFavorite(item.id)"
             :playing="item.id === playingId"
+            :quality="badge(item.id)"
           />
         </template>
         <template #empty>No channels in this category</template>
@@ -101,7 +109,10 @@ function play(i: number) {
           <img v-if="cursorChannel.logo" :src="cursorChannel.logo" alt="" />
         </div>
         <h2 class="info__name">{{ cursorChannel.name }}</h2>
-        <p class="tiny">Channel {{ cursorChannel.num }}</p>
+        <p class="tiny">
+          Channel {{ cursorChannel.num }}
+          <template v-if="cursorQuality"> · last played at {{ qualityLabel(cursorQuality.w, cursorQuality.h) }} ({{ cursorQuality.w }}×{{ cursorQuality.h }})</template>
+        </p>
 
         <div v-if="nowEntry" class="info__now">
           <p class="tiny">NOW · {{ fmtTime(nowEntry.start) }} – {{ fmtTime(nowEntry.end) }}</p>

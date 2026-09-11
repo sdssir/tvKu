@@ -5,6 +5,7 @@ import { useCatalog } from '@/composables/useCatalog'
 import { usePlayer } from '@/composables/usePlayer'
 import { fmtTime, progressOf, useEpg } from '@/composables/useEpg'
 import { KEY, setKeyInterceptor } from '@/composables/useTvNavigation'
+import { qualityLabel } from '@/services/quality'
 import VirtualList from './VirtualList.vue'
 import ChannelRow from './ChannelRow.vue'
 
@@ -61,6 +62,14 @@ const fmtClock = (s: number) => {
   const m = Math.floor((s % 3600) / 60)
   const sec = Math.floor(s % 60)
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`
+}
+const resText = computed(() => {
+  const r = player.resolution.value
+  return r ? `${qualityLabel(r.w, r.h)} · ${r.w}×${r.h}` : ''
+})
+const badgeFor = (id: string) => {
+  const q = catalog.qualityFor(id)
+  return q ? qualityLabel(q.w, q.h) : null
 }
 const progressPct = computed(() => (player.duration.value ? (player.currentTime.value / player.duration.value) * 100 : 0))
 
@@ -246,7 +255,7 @@ const stateLabel = computed(() => {
             <img v-if="live.channel.logo" :src="live.channel.logo" alt="" />
           </div>
           <div class="overlay__text">
-            <p class="tiny">CH {{ live.channel.num }}</p>
+            <p class="tiny">CH {{ live.channel.num }}<span v-if="resText" class="res"> · {{ resText }}</span></p>
             <h2>{{ title }}</h2>
             <template v-if="nowEntry">
               <p class="overlay__prog">
@@ -262,6 +271,7 @@ const stateLabel = computed(() => {
 
         <div v-else class="overlay__vod">
           <h2>{{ title }}</h2>
+          <p v-if="resText" class="tiny res">{{ resText }}</p>
           <div class="overlay__row">
             <span class="overlay__time">{{ fmtClock(player.currentTime.value) }}</span>
             <div class="bar bar--big"><span :style="{ width: `${progressPct}%` }"></span></div>
@@ -277,7 +287,7 @@ const stateLabel = computed(() => {
         <h3>Channels</h3>
         <VirtualList v-model:cursor="listCursor" :items="live.list" focus-id="player-chlist" :item-height-rem="LIVE_ROW_REM" @select="pickFromList">
           <template #default="{ item, isCursor }">
-            <ChannelRow :channel="item" :is-cursor="isCursor" :favorite="catalog.isFavorite(item.id)" :playing="item.id === live!.channel.id" />
+            <ChannelRow :channel="item" :is-cursor="isCursor" :favorite="catalog.isFavorite(item.id)" :playing="item.id === live!.channel.id" :quality="badgeFor(item.id)" />
           </template>
         </VirtualList>
       </aside>
@@ -385,6 +395,10 @@ const stateLabel = computed(() => {
 }
 .overlay__hint {
   white-space: nowrap;
+}
+.res {
+  color: var(--accent);
+  font-weight: 700;
 }
 .bar {
   height: 0.4rem;

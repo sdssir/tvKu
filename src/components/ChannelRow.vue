@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import type { LiveChannel } from '@/types/iptv'
 
-const props = defineProps<{ channel: LiveChannel; isCursor: boolean; favorite: boolean; playing?: boolean }>()
+const props = defineProps<{ channel: LiveChannel; isCursor: boolean; favorite: boolean; playing?: boolean; quality?: string | null }>()
 const broken = ref(false)
 watch(() => props.channel.logo, () => (broken.value = false))
 </script>
@@ -14,6 +14,7 @@ watch(() => props.channel.logo, () => (broken.value = false))
       <img v-if="channel.logo && !broken" :src="channel.logo" alt="" loading="lazy" @error="broken = true" />
     </span>
     <span class="row__name">{{ channel.name }}</span>
+    <span v-if="quality" class="row__q">{{ quality }}</span>
     <span v-if="favorite" class="row__fav">♥</span>
   </div>
 </template>
@@ -21,7 +22,7 @@ watch(() => props.channel.logo, () => (broken.value = false))
 <style scoped>
 .row {
   display: grid;
-  grid-template-columns: 3.5rem 4rem 1fr auto;
+  grid-template-columns: 3.5rem 4rem 1fr auto auto;
   align-items: center;
   gap: var(--sp-3);
   height: 100%;
@@ -63,5 +64,13 @@ watch(() => props.channel.logo, () => (broken.value = false))
 }
 .row__fav {
   color: #f87171;
+}
+.row__q {
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 </style>

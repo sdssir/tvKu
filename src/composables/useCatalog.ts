@@ -3,6 +3,7 @@ import { CATALOG_TTL_MS } from '@/config/app'
 import type { CatalogItem, Category, ContentKind, LiveChannel, SeriesItem, VodItem } from '@/types/iptv'
 import { KEYS, readStorage, removeStorage, useStoredRef, writeStorage } from './useLocalStorage'
 import { useAccount } from './useAccount'
+import { nameQualityRank } from '@/services/quality'
 
 /**
  * Every list the UI browses. Live TV loads at launch and is cached across
@@ -36,6 +37,10 @@ const favorites = useStoredRef<CatalogItem[]>(KEYS.favorites, [])
 const recents = useStoredRef<CatalogItem[]>(KEYS.recents, [])
 /** Playback position in seconds for VOD / episodes, keyed by item id. */
 const resume = useStoredRef<Record<string, { at: number; duration: number }>>(KEYS.resume, {})
+/** Frame size the TV actually decoded the last time an item played, keyed by item id. */
+const quality = useStoredRef<Record<string, { w: number; h: number }>>(KEYS.quality, {})
+/** Put channels whose name claims HD/4K ahead of the rest inside each category. */
+const preferHd = useStoredRef<boolean>(KEYS.preferHd, true)
 
 const isLoading = computed(() => loading.value.live || loading.value.vod || loading.value.series)
 
@@ -146,14 +151,31 @@ export function useCatalog() {
   function itemsIn(kind: ContentKind, categoryId: string): CatalogItem[] {
     switch (categoryId) {
       case ALL_CATEGORY:
+        // Never reordered: across a whole provider the "4K" names are mostly dead relays.
         return listFor(kind)
       case FAVORITES_CATEGORY:
         return favorites.value.filter((x) => x.kind === kind)
       case RECENT_CATEGORY:
         return recents.value.filter((x) => x.kind === kind)
       default:
-        return listFor(kind).filter((x) => x.categoryId === categoryId)
+        return hdFirst(
+          kind,
+          listFor(kind).filter((x) => x.categoryId === categoryId),
+        )
     }
+  }
+
+  /**
+   * Stable sort, so the provider's order survives inside each quality tier.
+   * Live only, and only inside a real category: movie and series names carry
+   * no such tags.
+   */
+  function hdFirst(kind: ContentKind, items: CatalogItem[]): CatalogItem[] {
+    if (kind !== 'live' || !preferHd.value) return items
+    return items
+      .map((item, i) => ({ item, i, rank: nameQualityRank(item.name) }))
+      .sort((a, b) => a.rank - b.rank || a.i - b.i)
+      .map((x) => x.item)
   }
 
   function search(query: string, limit = 60): CatalogItem[] {
@@ -197,6 +219,14 @@ export function useCatalog() {
   }
   const positionFor = (id: string) => resume.value[id] ?? null
 
+  function saveQuality(id: string, w: number, h: number) {
+    if (!w || !h) return
+    const cur = quality.value[id]
+    if (cur && cur.w === w && cur.h === h) return
+    quality.value = { ...quality.value, [id]: { w, h } }
+  }
+  const qualityFor = (id: string) => quality.value[id] ?? null
+
   return {
     loading,
     loaded,
@@ -220,5 +250,8 @@ export function useCatalog() {
     markWatched,
     savePosition,
     positionFor,
+    saveQuality,
+    qualityFor,
+    preferHd,
   }
 }

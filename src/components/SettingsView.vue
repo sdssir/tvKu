@@ -72,6 +72,16 @@ function signOut() {
       </div>
     </section>
 
+    <section class="panel settings__card">
+      <h2>Live TV ordering</h2>
+      <p class="muted">Inside each category, list channels whose name says 4K / FHD / HD before the rest. The provider's own order is kept within each tier; the All list is never reordered.</p>
+      <div class="settings__actions">
+        <button class="btn" :class="{ 'btn--primary': catalog.preferHd.value }" data-focus-id="settings-hd-on" @click="catalog.preferHd.value = true">HD channels first</button>
+        <button class="btn" :class="{ 'btn--primary': !catalog.preferHd.value }" data-focus-id="settings-hd-off" @click="catalog.preferHd.value = false">Provider order</button>
+      </div>
+      <p class="tiny">The TV's own picture processing (Super Resolution, AI Picture Pro) already applies to this app; set it under ⚙ → Picture while a channel is playing.</p>
+    </section>
+
     <p class="tiny">{{ APP.title }} {{ APP.version }} · {{ APP.id }}</p>
   </div>
 </template>
