@@ -1,0 +1,76 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+html {
+  /* Everything is sized in rem, so one value rescales the whole UI. */
+  font-size: 16px;
+  background: var(--bg-0);
+}
+
+/* 1280x720 — 2/3 of the 1080p design size. */
+@media (max-width: 1600px) {
+  html {
+    font-size: 10.667px;
+  }
+}
+
+body {
+  margin: 0;
+  overflow: hidden; /* a TV app never scrolls the page */
+  color: var(--text-primary);
+  font-family: 'LG Smart UI', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-0);
+  user-select: none;
+  cursor: default;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+*:focus {
+  outline: none;
+}

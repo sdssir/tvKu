@@ -1,0 +1,98 @@
+/* Shared TV chrome: focus rings, buttons, panels, scrollless layouts. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 3rem;
+  padding: 0 var(--sp-5);
+  border-radius: var(--r-pill);
+  background: var(--panel-soft);
+  border: 2px solid transparent;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  transition:
+    background var(--t-fast),
+    border-color var(--t-fast),
+    transform var(--t-fast);
+}
+.btn--primary {
+  background: var(--accent);
+  color: #06210f;
+}
+.btn--danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+.btn:focus,
+.btn.is-focused {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 0.25rem var(--focus-glow);
+  transform: scale(1.04);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.field {
+  display: block;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+  border: 2px solid var(--line);
+  font-size: var(--fs-lg);
+}
+.field:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 0.25rem var(--focus-glow);
+}
+.field::placeholder {
+  color: var(--text-muted);
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+.tiny {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 0.3rem solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: var(--fs-lg);
+  text-align: center;
+  padding: var(--sp-6);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 160ms ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

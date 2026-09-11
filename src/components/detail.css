@@ -1,0 +1,76 @@
+.detail {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg-0) var(--backdrop, none) center / cover no-repeat;
+}
+.detail__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(5, 7, 12, 0.96) 35%, rgba(5, 7, 12, 0.75));
+}
+.detail__body {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 22rem 1fr;
+  gap: var(--sp-7);
+  padding: var(--safe-y) var(--safe-x);
+  align-items: start;
+}
+.detail__poster {
+  aspect-ratio: 2 / 3;
+  border-radius: var(--r-lg);
+  background: var(--bg-2);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.detail__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.detail__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-height: 0;
+  height: 100%;
+}
+.detail__text h1 {
+  font-size: var(--fs-3xl);
+  font-weight: 800;
+  line-height: 1.1;
+}
+.detail__meta {
+  display: flex;
+  gap: var(--sp-4);
+  font-weight: 600;
+}
+.detail__plot {
+  max-width: 70rem;
+  font-size: var(--fs-lg);
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.detail__seasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.detail__episodes {
+  flex: 1;
+  min-height: 0;
+  max-width: 80rem;
+  margin-top: var(--sp-2);
+}

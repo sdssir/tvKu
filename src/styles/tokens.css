@@ -1,0 +1,57 @@
+:root {
+  /* Surfaces */
+  --bg-0: #05070c;
+  --bg-1: #0b0f18;
+  --bg-2: #121828;
+  --panel: rgba(14, 19, 32, 0.9);
+  --panel-soft: rgba(20, 27, 44, 0.7);
+  --line: rgba(140, 160, 200, 0.14);
+  --line-strong: rgba(160, 180, 230, 0.3);
+
+  /* Text */
+  --text-primary: #f4f6fb;
+  --text-secondary: #aab4c6;
+  --text-muted: #6f7b91;
+
+  /* Accents */
+  --accent: #22c55e;
+  --accent-soft: rgba(34, 197, 94, 0.18);
+  --accent-2: #38bdf8;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --live: #ef3b4f;
+
+  --focus-ring: #ffffff;
+  --focus-glow: rgba(255, 255, 255, 0.35);
+  --focus-bg: rgba(255, 255, 255, 0.12);
+
+  /* Spacing — rem based so the whole UI scales at 720p */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 2.75rem;
+  --sp-8: 3.5rem;
+
+  /* TV safe area */
+  --safe-x: 3.5rem;
+  --safe-y: 2rem;
+
+  --r-sm: 0.5rem;
+  --r-md: 0.875rem;
+  --r-lg: 1.25rem;
+  --r-pill: 999px;
+
+  --fs-xs: 0.8125rem;
+  --fs-sm: 0.9375rem;
+  --fs-md: 1.0625rem;
+  --fs-lg: 1.375rem;
+  --fs-xl: 1.75rem;
+  --fs-2xl: 2.25rem;
+  --fs-3xl: 3rem;
+
+  --shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.55);
+  --t-fast: 120ms ease-out;
+}

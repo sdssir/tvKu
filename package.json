@@ -1,0 +1,34 @@
+{
+  "name": "tvku-webos",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "webos:check": "npm run build && ares-package dist --check",
+    "webos:package": "npm run build && ares-package dist -o release --no-minify",
+    "webos:install": "ares-install release/com.jul.tvku_1.0.0_all.ipk",
+    "webos:launch": "ares-launch com.jul.tvku",
+    "webos:close": "ares-launch -c com.jul.tvku",
+    "webos:inspect": "ares-inspect --app com.jul.tvku",
+    "webos:devices": "ares-setup-device --list",
+    "webos:deploy": "npm run webos:package && npm run webos:install && npm run webos:launch"
+  },
+  "dependencies": {
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "happy-dom": "^20.14.0",
+    "hls.js": "^1.7.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.3.11"
+  }
+}

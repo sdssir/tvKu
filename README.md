@@ -1,0 +1,72 @@
+# tvKu — IPTV player for LG webOS TV
+
+An IPTV Smarters–style player for the LG **OLED48C6PSA** (webOS 26). Signs in to an
+**Xtream Codes** panel (server + username + password) or loads an **M3U playlist URL**, then
+browses Live TV, Movies and Series from the remote — no mouse required.
+
+**Features**
+
+- Live TV: category rail, channel list, now/next programme guide (Xtream `get_short_epg`),
+  full-screen playback with ▲▼ / CH± zapping, an OK-to-open channel list and digit entry.
+- Movies: category rail, poster grid, detail page (plot, cast, rating, duration), resume where
+  you left off.
+- Series: seasons and episodes, auto-plays the next episode, remembers position per episode.
+- Favourites and Recently watched (per channel / title), Search across everything.
+- Settings: account status and expiry, connection count, live stream format (HLS / MPEG-TS),
+  refresh lists, sign out.
+
+## Tech stack
+
+Vue 3 · Vite · TypeScript · HTML5 `<video>` (webOS plays HLS natively) · `fetch` ·
+`localStorage`. The only runtime dependency is `vue`. `hls.js` is a dev dependency used **only**
+under `npm run dev` so desktop Chrome can play HLS; the TV build never contains it.
+
+## Development
+
+```bash
+npm install
+npm run dev          # http://localhost:5174 — includes a CORS proxy for the IPTV server
+npm run build        # type-check (vue-tsc) + production build to dist/
+npm run typecheck
+npm run test         # vitest
+```
+
+Keyboard on desktop: arrows = D-pad, Enter = OK, Escape = Back, Space = play/pause.
+
+## webOS package / install
+
+```bash
+npm run webos:check     # build + ares-package --check
+npm run webos:package   # build + .ipk into release/
+npm run webos:install   # install on the default device
+npm run webos:launch
+npm run webos:deploy    # package + install + launch
+npm run webos:inspect   # remote Chrome DevTools
+```
+
+Requires `@webosose/ares-cli` and a TV registered with `ares-setup-device` (Developer Mode on
+the TV). The walkthrough in the sibling radio app's `docs/WEBOS_DEPLOY.md` applies unchanged;
+only the app id (`com.jul.tvku`) differs.
+
+## Notes on providers
+
+- **Stream URLs** follow the Xtream convention: `/live/U/P/{id}.m3u8`, `/movie/U/P/{id}.{ext}`,
+  `/series/U/P/{episodeId}.{ext}`. Live defaults to HLS; MPEG-TS can be chosen in Settings.
+- **EPG times**: panels emit `start`/`end` as server-local strings and mis-zone the
+  `*_timestamp` fields, so the strings are trusted (correct when the TV is in the provider's
+  timezone, which is the normal case).
+- **Big catalogues** (tens of thousands of movies) are fetched the first time the Movies or
+  Series tab opens and kept in memory only; the Live list is cached in `localStorage` for six
+  hours. Every list is virtualised — the DOM holds one screenful.
+- **Connections**: the panel counts every open stream, including a desktop `npm run dev`
+  session, against `max_connections`.
+- **M3U sources** get Live and Movies (by URL shape); no EPG or series metadata.
+
+## Debugging on the TV
+
+```js
+localStorage.setItem('tvku:debug', '1')   // verbose [player] logs, then relaunch
+```
+
+Credentials are stored in the TV's `localStorage` in the clear, as every IPTV client does; sign
+out from Settings to wipe everything the app stored.
