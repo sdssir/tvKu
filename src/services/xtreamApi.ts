@@ -203,6 +203,7 @@ export class XtreamApi {
     )
     const info = raw.info ?? {}
     return {
+      tmdbId: orNull(info.tmdb_id),
       plot: orNull(info.plot ?? info.description),
       cast: orNull(info.cast ?? info.actors),
       director: orNull(info.director),
@@ -239,6 +240,7 @@ export class XtreamApi {
         const info = (e.info ?? {}) as Record<string, unknown>
         const ep: Episode = {
           id: str(e.id),
+          tmdbId: orNull(info.tmdb_id),
           seasonNumber,
           episodeNumber: num(e.episode_num) ?? 0,
           title: str(e.title).trim() || `Episode ${str(e.episode_num)}`,

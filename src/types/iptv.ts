@@ -50,6 +50,8 @@ export interface SeriesItem {
 export type CatalogItem = LiveChannel | VodItem | SeriesItem
 
 export interface VodDetails {
+  /** TMDB id, when the panel knows it — the key to an exact subtitle match. */
+  tmdbId: string | null
   plot: string | null
   cast: string | null
   director: string | null
@@ -61,6 +63,8 @@ export interface VodDetails {
 
 export interface Episode {
   id: string
+  /** TMDB id of this episode, when the panel supplies one. */
+  tmdbId: string | null
   seasonNumber: number
   episodeNumber: number
   title: string

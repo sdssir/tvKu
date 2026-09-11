@@ -3,6 +3,7 @@ import { OpenSubtitles, type OsConfig, type SubtitleHit, type SubtitleQuery } fr
 import { cueAt, parseSrt, type Cue } from '@/services/srt'
 import { KEYS, useStoredRef } from './useLocalStorage'
 import { setSessionStartHook, usePlayer } from './usePlayer'
+import { useAccount } from './useAccount'
 
 /**
  * Subtitles for movies and episodes, fetched from OpenSubtitles and drawn by
@@ -77,6 +78,35 @@ export function useSubtitles() {
   })
 
 
+  /**
+   * Build the query for whatever is playing. The panel's TMDB id is what makes
+   * the result the right film, so it is worth one extra `get_vod_info` call
+   * when the id is not already to hand.
+   */
+  async function currentQuery(): Promise<SubtitleQuery | null> {
+    const s = player.session.value
+    if (!s || s.kind === 'live') return null
+    if (s.kind === 'episode') {
+      return {
+        kind: 'episode',
+        title: s.series.name,
+        season: s.episode.seasonNumber,
+        episode: s.episode.episodeNumber,
+        tmdbId: s.episode.tmdbId,
+      }
+    }
+    let tmdbId: string | null = null
+    const acct = useAccount()
+    if (acct.api.value && !s.item.url) {
+      try {
+        tmdbId = (await acct.api.value.vodInfo(s.item.streamId)).tmdbId
+      } catch {
+        // No id: the title search still works, just less precisely.
+      }
+    }
+    return { kind: 'movie', title: s.item.name, year: s.item.year, tmdbId }
+  }
+
   async function search(q: SubtitleQuery): Promise<void> {
     error.value = null
     results.value = []
@@ -144,6 +174,7 @@ export function useSubtitles() {
     results,
     searching,
     error,
+    currentQuery,
     search,
     choose,
     turnOff,

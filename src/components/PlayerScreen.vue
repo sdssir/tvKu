@@ -8,7 +8,6 @@ import { KEY, setKeyInterceptor } from '@/composables/useTvNavigation'
 import { qualityLabel } from '@/services/quality'
 import { useSubtitles } from '@/composables/useSubtitles'
 import { useToast } from '@/composables/useToast'
-import type { SubtitleQuery } from '@/services/opensubtitles'
 import VirtualList from './VirtualList.vue'
 import ChannelRow from './ChannelRow.vue'
 
@@ -99,25 +98,23 @@ function pickFromList(i: number) {
 const subOpen = ref(false)
 const subCursor = ref(0)
 
-/** Item key used for remembering the choice, and the search to run. */
-const subTarget = computed<{ id: string; query: SubtitleQuery } | null>(() => {
+/** Item key the chosen subtitle is remembered under. */
+const subTarget = computed<{ id: string } | null>(() => {
   const s = player.session.value
   if (!s || s.kind === 'live') return null
-  if (s.kind === 'vod') return { id: s.item.id, query: { kind: 'movie', title: s.item.name, year: s.item.year } }
-  return {
-    id: `ep:${s.episode.id}`,
-    query: { kind: 'episode', title: s.series.name, season: s.episode.seasonNumber, episode: s.episode.episodeNumber },
-  }
+  return { id: s.kind === 'vod' ? s.item.id : `ep:${s.episode.id}` }
 })
 
 /** Row 0 is "Off"; the rest are search hits. */
 const subRows = computed(() => subs.results.value.length + 1)
 
-function openSubs() {
+async function openSubs() {
   if (!subTarget.value) return
   subOpen.value = true
   subCursor.value = 0
-  if (!subs.results.value.length && !subs.searching.value) void subs.search(subTarget.value.query)
+  if (subs.results.value.length || subs.searching.value) return
+  const q = await subs.currentQuery()
+  if (q) void subs.search(q)
 }
 function closeSubs() {
   subOpen.value = false
@@ -251,7 +248,7 @@ function onKey(e: KeyboardEvent): boolean {
     case KEY.DOWN:
     case KEY.CH_DOWN:
       if (isLive) player.zap(-1)
-      else openSubs()
+      else void openSubs()
       return true
     case KEY.RED:
     case KEY.GREEN:
@@ -389,8 +386,16 @@ const stateLabel = computed(() => {
             @click="subCursor = i + 1; pickSub()"
           >
             <span class="sub__lang">{{ hit.language.toUpperCase() }}</span>
-            <span class="sub__name">{{ hit.release }}<span v-if="hit.hearingImpaired"> · HI</span></span>
-            <span class="tiny">{{ hit.matched }} · ⬇ {{ hit.downloads.toLocaleString() }}</span>
+            <span class="sub__name">
+              {{ hit.release }}
+              <span v-if="hit.fromTrusted" class="tag tag--good">TRUSTED</span>
+              <span v-if="hit.autoTranslated" class="tag tag--bad">AUTO-TRANSLATED</span>
+              <span v-if="hit.hearingImpaired" class="tag">HI</span>
+            </span>
+            <span class="tiny">
+              <template v-if="hit.votes">★ {{ hit.ratings.toFixed(1) }} ({{ hit.votes }}) · </template>
+              ⬇ {{ hit.downloads.toLocaleString() }} · {{ hit.matched }}
+            </span>
           </div>
         </div>
       </aside>
@@ -590,6 +595,23 @@ const stateLabel = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.tag {
+  margin-left: var(--sp-2);
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.tag--good {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tag--bad {
+  border-color: var(--warning);
+  color: var(--warning);
 }
 
 /* Subtitle text: large, outlined, readable over anything. */

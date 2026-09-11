@@ -24,6 +24,40 @@ export interface SubtitleHit {
   hearingImpaired: boolean
   /** The title OpenSubtitles matched, so a wrong match is visible. */
   matched: string
+  /** Community rating 0-10, and how many people voted for it. */
+  ratings: number
+  votes: number
+  /** Uploaded by an account OpenSubtitles marks as trusted. */
+  fromTrusted: boolean
+  hd: boolean
+  /** Produced by a machine rather than a person — usually poor. */
+  autoTranslated: boolean
+  uploader: string
+}
+
+/**
+ * How good a subtitle looks, higher is better. Ordering inside a language:
+ *
+ * - Machine or AI translations are pushed to the bottom; they read badly and
+ *   are the one signal worth treating as disqualifying.
+ * - A trusted uploader outweighs raw popularity.
+ * - A rating only counts when somebody actually voted — the API reports an
+ *   unrated file as 0.0, which must not read as "rated zero" — and it counts
+ *   more as the number of votes grows.
+ * - Download count stands in for the crowd's verdict, on a log scale so a
+ *   300k file beats a 30k one without burying everything else.
+ * - Hearing-impaired files carry sound descriptions most viewers do not want,
+ *   so they lose a hair; they stay in the list and stay selectable.
+ */
+export function qualityScore(h: SubtitleHit): number {
+  let score = 0
+  if (h.autoTranslated) score -= 10
+  if (h.fromTrusted) score += 3
+  if (h.hd) score += 0.5
+  if (h.hearingImpaired) score -= 0.5
+  if (h.votes > 0) score += (h.ratings / 10) * 3 * (Math.min(h.votes, 10) / 10)
+  score += Math.log10(Math.max(0, h.downloads) + 1)
+  return score
 }
 
 export interface DownloadResult {
@@ -34,8 +68,8 @@ export interface DownloadResult {
 }
 
 export type SubtitleQuery =
-  | { kind: 'movie'; title: string; year: string | null }
-  | { kind: 'episode'; title: string; season: number; episode: number }
+  | { kind: 'movie'; title: string; year: string | null; tmdbId?: string | null }
+  | { kind: 'episode'; title: string; season: number; episode: number; tmdbId?: string | null }
 
 /** Panels decorate names with "(2022)[BM]", "4k", "(my)" — strip that before searching. */
 export function cleanTitle(name: string): string {
@@ -109,16 +143,26 @@ export class OpenSubtitles {
 
   async search(q: SubtitleQuery): Promise<SubtitleHit[]> {
     const params = new URLSearchParams({ languages: this.cfg.languages.replace(/\s/g, '') || 'en' })
-    // The API canonicalises the query to lower case and 301s if it is not;
-    // fetch would follow that, but sending it lower case saves the round-trip.
-    params.set('query', cleanTitle(q.title).toLowerCase())
-    if (q.kind === 'movie') {
-      params.set('type', 'movie')
-      if (q.year) params.set('year', q.year)
+    /*
+     * A TMDB id is worth far more than the title. Free text matches on common
+     * words - "The Wolf and the Lion" returns 3400 rows, mostly Shang-Chi and
+     * Raya - while the id returns exactly the five files for that film. Text
+     * is only the fallback for when the panel gave us no id.
+     */
+    if (q.tmdbId) {
+      params.set('tmdb_id', q.tmdbId)
     } else {
-      params.set('type', 'episode')
-      params.set('season_number', String(q.season))
-      params.set('episode_number', String(q.episode))
+      // The API canonicalises the query to lower case and 301s if it is not;
+      // fetch would follow that, but sending it lower case saves the round-trip.
+      params.set('query', cleanTitle(q.title).toLowerCase())
+      if (q.kind === 'movie') {
+        params.set('type', 'movie')
+        if (q.year) params.set('year', q.year)
+      } else {
+        params.set('type', 'episode')
+        params.set('season_number', String(q.season))
+        params.set('episode_number', String(q.episode))
+      }
     }
     params.set('order_by', 'download_count')
     params.set('order_direction', 'desc')
@@ -129,6 +173,13 @@ export class OpenSubtitles {
           release?: string
           download_count?: number
           hearing_impaired?: boolean
+          ratings?: number
+          votes?: number
+          from_trusted?: boolean
+          hd?: boolean
+          ai_translated?: boolean
+          machine_translated?: boolean
+          uploader?: { name?: string }
           files?: Array<{ file_id?: number; file_name?: string }>
           feature_details?: { title?: string; movie_name?: string; year?: number }
         }
@@ -147,15 +198,21 @@ export class OpenSubtitles {
         downloads: a.download_count ?? 0,
         hearingImpaired: !!a.hearing_impaired,
         matched: fd.movie_name || [fd.title, fd.year].filter(Boolean).join(' ') || '',
+        ratings: a.ratings ?? 0,
+        votes: a.votes ?? 0,
+        fromTrusted: !!a.from_trusted,
+        hd: !!a.hd,
+        autoTranslated: !!a.ai_translated || !!a.machine_translated,
+        uploader: a.uploader?.name ?? '',
       })
     }
-    // Keep the caller's language preference order, then popularity.
+    // Language preference decides the group; quality decides the order inside it.
     const order = this.cfg.languages.split(',').map((s) => s.trim().toLowerCase())
     const rank = (l: string) => {
       const i = order.indexOf(l)
       return i < 0 ? order.length : i
     }
-    hits.sort((x, y) => rank(x.language) - rank(y.language) || y.downloads - x.downloads)
+    hits.sort((x, y) => rank(x.language) - rank(y.language) || qualityScore(y) - qualityScore(x))
     return hits
   }
 

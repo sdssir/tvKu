@@ -62,6 +62,34 @@ only the app id (`com.jul.tvku`) differs.
   session, against `max_connections`.
 - **M3U sources** get Live and Movies (by URL shape); no EPG or series metadata.
 
+## Subtitles
+
+Movies and episodes pull subtitles from opensubtitles.com. Set an API key (free, from
+opensubtitles.com/consumers) and a language order in Settings; adding the account login raises
+the daily download limit. While playing: **▼** opens the list, **red / green** shift timing by
+0.5 s, and the chosen file is cached per title so a replay costs no download.
+
+**Matching is by TMDB id, not title.** The panel supplies `tmdb_id` for movies (via
+`get_vod_info`) and for episodes (inside `get_series_info`), and OpenSubtitles accepts it
+directly. This matters more than it sounds: a title search for *The Wolf and the Lion* returns
+3,426 rows — mostly *Shang-Chi*, *Raya and the Last Dragon* and *The Witcher: Nightmare of the
+Wolf*, because the words "the", "and", "wolf" and "lion" match everything — while the id returns
+exactly the 5 files for that film. Title search remains the fallback when a panel gives no id.
+
+Within each language, files are ordered by `qualityScore`:
+
+| Signal | Weight | Why |
+|---|---|---|
+| AI / machine translated | −10 | reads badly; effectively disqualifying |
+| Trusted uploader | +3 | outweighs raw popularity |
+| Community rating | up to +3 | only when someone voted, scaled by vote count |
+| Download count | +log₁₀(n) | the crowd's verdict, so 300k beats 30k without burying the rest |
+| HD | +0.5 | usually the better-timed release |
+| Hearing-impaired | −0.5 | sound descriptions most viewers do not want; stays selectable |
+
+An unrated file reports `ratings: 0.0` from the API, which must not be read as "rated zero" —
+the rating term applies only when `votes > 0`.
+
 ## Debugging on the TV
 
 ```js
