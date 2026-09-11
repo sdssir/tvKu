@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from 'vue'
+import { computed, nextTick, ref, shallowRef } from 'vue'
 import type { Episode, LiveChannel, SeriesItem, VodItem } from '@/types/iptv'
 import { useAccount } from './useAccount'
 import { useCatalog } from './useCatalog'
@@ -10,6 +10,11 @@ import { useCatalog } from './useCatalog'
  * element per stream leaks media pipelines on webOS and the TV eventually
  * refuses to open new ones. The player screen adopts the element into its
  * DOM while open and gives it back on close.
+ *
+ * Confirmed on the device: webOS does not start loading a media element that
+ * is not in the document (desktop Chrome does), so the element is parked in a
+ * hidden stage between sessions and `src` is only set once the player screen
+ * has adopted it.
  */
 
 export type PlayerState = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error'
@@ -26,6 +31,11 @@ const video = document.createElement('video')
 video.preload = 'auto'
 video.autoplay = false
 video.setAttribute('playsinline', '')
+
+const stage = document.createElement('div')
+stage.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden'
+stage.appendChild(video)
+document.body.appendChild(stage)
 
 const state = ref<PlayerState>('idle')
 const session = shallowRef<Session | null>(null)
@@ -163,7 +173,8 @@ video.addEventListener('playing', () => {
   errorMessage.value = null
 })
 video.addEventListener('pause', () => {
-  if (state.value === 'playing' || state.value === 'buffering') state.value = 'paused'
+  // Only a real pause counts; load() during a retry also fires `pause`.
+  if (state.value === 'playing') state.value = 'paused'
 })
 video.addEventListener('waiting', () => {
   if (state.value === 'playing') state.value = 'buffering'
@@ -207,6 +218,7 @@ async function playLive(list: LiveChannel[], index: number): Promise<void> {
   isOpen.value = true
   retryAttempt = 0
   useCatalog().markWatched(channel)
+  await nextTick() // let PlayerScreen adopt the element first
   await start()
 }
 
@@ -216,6 +228,7 @@ async function playVod(item: VodItem): Promise<void> {
   retryAttempt = 0
   const cat = useCatalog()
   cat.markWatched(item)
+  await nextTick()
   await start(cat.positionFor(item.id)?.at ?? 0)
 }
 
@@ -227,6 +240,7 @@ async function playEpisode(series: SeriesItem, episodes: Episode[], index: numbe
   retryAttempt = 0
   const cat = useCatalog()
   cat.markWatched(series)
+  await nextTick()
   await start(cat.positionFor(`ep:${episode.id}`)?.at ?? 0)
 }
 
@@ -275,7 +289,7 @@ function close(): void {
   state.value = 'idle'
   errorMessage.value = null
   isOpen.value = false
-  video.parentElement?.removeChild(video)
+  stage.appendChild(video)
 }
 
 /** The TV went to the launcher / another app: stop streaming rather than run hidden. */
