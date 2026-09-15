@@ -93,10 +93,13 @@ Movies and episodes pull subtitles from SubDL and/or OpenSubtitles; set either A
 in Settings, plus a language order, and the two lists are merged. *Test connection* checks each
 key.
 
-- **SubDL** (free key from the subdl.com account panel): 2,000 searches a day, and downloads are
-  anonymous, counted per IP address (300 a day). Search asks for the unpacked file list so the
-  raw `.srt` is fetched directly; an entry without one is downloaded as a ZIP and opened on the
-  TV with the browser's DecompressionStream (`src/services/zip.ts`).
+- **SubDL**: a key ships with the app (`DEFAULT_SUBDL_KEY` in `src/config/app.ts`, free tier:
+  2,000 searches and 50 downloads a day), so subtitles work with nothing set up. Settings shows
+  it locked and masked; *Verify SubDL key* calls the account endpoint (`/api/v2/me`, not counted
+  against quota) and reports the plan and what is left today, and *Change key* unlocks the
+  field. Search asks for the unpacked file list so the raw `.srt` is fetched directly; an entry
+  without one is downloaded as a ZIP and opened on the TV with the browser's DecompressionStream
+  (`src/services/zip.ts`).
 - **OpenSubtitles** (free key from opensubtitles.com/consumers): 20 downloads a day per account
   login. The limit is counted per account (per IP address without one), not per API key, so
   Settings takes a list of logins: a download goes to the first account with quota left, and one

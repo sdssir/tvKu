@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { APP } from '@/config/app'
+import { APP, DEFAULT_SUBDL_KEY } from '@/config/app'
 import { useAccount } from '@/composables/useAccount'
 import { useCatalog } from '@/composables/useCatalog'
 import { useToast } from '@/composables/useToast'
 import { useSubtitles } from '@/composables/useSubtitles'
 import { useTvNavigation } from '@/composables/useTvNavigation'
 import type { OsLogin } from '@/services/opensubtitles'
+import { maskKey } from '@/services/subdl'
 import { IDLE_OPTIONS, useIdle } from '@/composables/useIdle'
 import { ref } from 'vue'
 
@@ -18,6 +19,42 @@ const subs = useSubtitles()
 const idle = useIdle()
 const nav = useTvNavigation()
 const subsStatus = ref<string | null>(null)
+/**
+ * The SubDL key is shown locked and masked so a stray OK on the field does
+ * not open the on-screen keyboard over a key that works. "Change key" unlocks
+ * it; "Done" locks it again, restoring the built-in key if it was cleared.
+ */
+const subdlEditing = ref(false)
+const subdlStatus = ref<string | null>(null)
+const subdlMasked = computed(() => maskKey(subs.settings.value.subdlKey))
+const subdlIsBuiltIn = computed(() => subs.settings.value.subdlKey.trim() === DEFAULT_SUBDL_KEY)
+
+async function verifySubdl() {
+  subdlStatus.value = 'Checking…'
+  try {
+    subdlStatus.value = await subs.verifySubdl()
+  } catch (err) {
+    subdlStatus.value = (err as Error).message
+  }
+}
+
+function editSubdl() {
+  subdlEditing.value = true
+  void nav.reanchorFocus('subs-subdl', /^subs-/)
+}
+
+function lockSubdl() {
+  if (!subs.settings.value.subdlKey.trim()) subs.useBuiltInSubdlKey()
+  subdlEditing.value = false
+  subdlStatus.value = null
+  void nav.reanchorFocus('subs-subdl-verify', /^subs-/)
+}
+
+function resetSubdl() {
+  subs.useBuiltInSubdlKey()
+  subdlStatus.value = null
+  void nav.reanchorFocus('subs-subdl-verify', /^subs-/)
+}
 
 function quotaNote(login: OsLogin): string {
   const at = subs.spentUntil(login)
@@ -127,7 +164,7 @@ function signOut() {
     <section class="panel settings__card">
       <h2>Subtitles</h2>
       <p class="muted">
-        Movies and episodes can pull subtitles from SubDL and OpenSubtitles; set either key or both and the lists are merged. A free SubDL key (subdl.com, account panel) allows 300 downloads a day with no login. A free OpenSubtitles key (opensubtitles.com/consumers) allows 20 a day per account login.
+        Movies and episodes pull subtitles from SubDL and OpenSubtitles; the lists are merged. A SubDL key is built in (free tier: 50 downloads a day), so nothing needs setting up. Add a free OpenSubtitles key (opensubtitles.com/consumers) for 20 more a day per account login.
       </p>
       <!--
         One column of full-width controls, walked with Up/Down only. Left and
@@ -136,8 +173,18 @@ function signOut() {
         pair under a wide field would be skipped or unreachable from the D-pad.
       -->
       <div class="settings__subs">
-        <label class="settings__label">SubDL API key</label>
-        <input v-model.trim="subs.settings.value.subdlKey" class="field" data-focus-id="subs-subdl" type="text" autocapitalize="off" autocomplete="off" placeholder="subdl_…" />
+        <label class="settings__label">SubDL API key{{ subdlIsBuiltIn ? ' (built in)' : '' }}</label>
+        <template v-if="subdlEditing">
+          <input v-model.trim="subs.settings.value.subdlKey" class="field" data-focus-id="subs-subdl" type="text" autocapitalize="off" autocomplete="off" placeholder="subdl_…" />
+          <button class="btn" data-focus-id="subs-subdl-done" @click="lockSubdl">Done</button>
+          <button v-if="!subdlIsBuiltIn" class="btn btn--ghost" data-focus-id="subs-subdl-reset" @click="resetSubdl">Use built-in key</button>
+        </template>
+        <template v-else>
+          <div class="field field--locked settings__mono" aria-readonly="true">{{ subdlMasked || 'No key' }} <span class="settings__lock">🔒</span></div>
+          <button class="btn" data-focus-id="subs-subdl-verify" :disabled="!subs.subdlConfigured.value" @click="verifySubdl">Verify SubDL key</button>
+          <button class="btn btn--ghost" data-focus-id="subs-subdl-edit" @click="editSubdl">Change key</button>
+        </template>
+        <span v-if="subdlStatus" class="muted settings__note">{{ subdlStatus }}</span>
         <label class="settings__label">OpenSubtitles API key</label>
         <input v-model.trim="subs.settings.value.apiKey" class="field" data-focus-id="subs-key" type="text" autocapitalize="off" autocomplete="off" placeholder="Paste your API key" />
         <label class="settings__label">OpenSubtitles logins (optional) — each has its own daily download limit; when one is used up the next is tried</label>
@@ -214,6 +261,20 @@ dd {
 }
 .settings__subs > * {
   grid-column: 1;
+}
+.field--locked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  opacity: 0.55;
+  color: var(--text-secondary);
+  border-style: dashed;
+  cursor: default;
+  user-select: none;
+}
+.settings__lock {
+  font-size: var(--fs-sm);
 }
 .settings__subs > .settings__label,
 .settings__subs > .settings__note {

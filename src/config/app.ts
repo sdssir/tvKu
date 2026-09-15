@@ -1,7 +1,7 @@
 /** Single source of truth for app identity. Keep in sync with public/appinfo.json. */
 export const APP = {
   id: 'com.jul.tvku',
-  version: '1.2.0',
+  version: '1.2.1',
   title: 'tvKu',
   tagline: 'TV for Everyone',
   railNote: 'Malaysian Entertainment Always With You',
@@ -42,6 +42,13 @@ export const SORT_OPTIONS = {
 } as const
 
 export type SortId = (typeof SORT_OPTIONS)[keyof typeof SORT_OPTIONS][number]['id']
+
+/**
+ * SubDL key shipped with the app (free tier: 2,000 searches and 50 keyed
+ * downloads a day). Filled into Settings when no key is stored, so subtitles
+ * work out of the box; Settings shows it locked and masked.
+ */
+export const DEFAULT_SUBDL_KEY = 'subdl_E1bH-_v6A3osq2Fh1KZ0aiUgB-aoZAzdrawnpzblltg'
 
 /** Catalogue lists are cached this long before a relaunch refetches them. */
 export const CATALOG_TTL_MS = 6 * 60 * 60 * 1000

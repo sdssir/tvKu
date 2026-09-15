@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SubDL } from './subdl'
+import { SubDL, maskKey } from './subdl'
 
 /* Shapes copied from real responses (keys redacted). */
 const KEY = 'subdl_TEST'
@@ -147,5 +147,46 @@ describe('SubDL', () => {
     // The v1 shape, in case a path still answers with it.
     vi.stubGlobal('fetch', vi.fn(async () => json({ status: false, statusCode: 403, error: 'not_authorized', message: 'Not Authorized' }, 403)))
     await expect(search('nope')).rejects.toThrow('SubDL rejected the API key')
+  })
+})
+
+describe('SubDL account', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const meBody = {
+    user: { id: 268965, name: 'Jul', username: null },
+    plan: { is_pro: false, name: 'Free' },
+    usage: {
+      search: { used: 12, limit: 2000, remaining: 1988, period: 'day', reset_at: '2026-09-16T00:00:00.000Z' },
+      downloads: { used: 3, limit: 50, remaining: 47, period: 'day', reset_at: '2026-09-16T00:00:00.000Z' },
+    },
+  }
+
+  it('verifies the key against /me and reads both daily counters', async () => {
+    const urls: string[] = []
+    const auths: Array<string | undefined> = []
+    vi.stubGlobal('fetch', vi.fn(async (raw: string, init?: RequestInit) => (urls.push(target(raw)), auths.push(auth(init)), json(meBody))))
+    const a = await new SubDL({ apiKey: KEY, languages: 'en' }).account()
+    expect(urls[0]).toBe('https://api.subdl.com/api/v2/me')
+    expect(auths[0]).toBe(`Bearer ${KEY}`)
+    expect(a.name).toBe('Jul')
+    expect(a.plan).toBe('Free')
+    expect(a.isPro).toBe(false)
+    expect(a.downloads).toEqual({ used: 3, limit: 50, remaining: 47, resetAt: Date.parse('2026-09-16T00:00:00.000Z') })
+    expect(a.searches.remaining).toBe(1988)
+  })
+
+  it('reports a rejected key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json({ error: { code: 'unauthorized', message: 'Missing API key.', docs_url: 'https://subdl.com/developers#errors' } }, 401)),
+    )
+    await expect(new SubDL({ apiKey: 'bad', languages: 'en' }).account()).rejects.toThrow('SubDL rejected the API key')
+  })
+
+  it('masks a key for display', () => {
+    expect(maskKey('subdl_E1bH-_v6A3osq2Fh1KZ0aiUgB-aoZAzdrawnpzblltg')).toBe('subdl_E1bH…lltg')
+    expect(maskKey('')).toBe('')
+    expect(maskKey('short')).toBe('••••')
   })
 })

@@ -9,7 +9,8 @@ import {
   type SubtitleHit,
   type SubtitleQuery,
 } from '@/services/opensubtitles'
-import { SubDL } from '@/services/subdl'
+import { SubDL, type SdAccount } from '@/services/subdl'
+import { DEFAULT_SUBDL_KEY } from '@/config/app'
 import { cueAt, parseSrt, type Cue } from '@/services/srt'
 import { KEYS, useStoredRef } from './useLocalStorage'
 import { setSessionStartHook, usePlayer } from './usePlayer'
@@ -39,6 +40,9 @@ const MAX_SAVED = 8
 
 const settings = useStoredRef<OsConfig>(KEYS.subtitles, { apiKey: '', logins: [], subdlKey: '', languages: 'en,ms' })
 settings.value = normaliseConfig(settings.value)
+if (!settings.value.subdlKey.trim()) settings.value.subdlKey = DEFAULT_SUBDL_KEY
+/** Last verified SubDL account, for the Settings quota line. */
+const subdlAccount = ref<SdAccount | null>(null)
 /** Login id → when its quota resets (epoch ms); an anonymous session is ''. */
 const spent = useStoredRef<Record<string, number>>(KEYS.subtitleQuota, {})
 /** Saved choice per item id, most recent first. */
@@ -272,14 +276,34 @@ export function useSubtitles() {
     setOffset(player.currentTime.value - cue.start)
   }
 
-  /** Settings-screen check: a search on each provider (no download), then each OpenSubtitles password. */
+  const clock = (at: number | null) => (at ? new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')
+
+  /**
+   * Verify the SubDL key against the account endpoint; costs no quota.
+   * Returns a one-line summary and remembers the counters for Settings.
+   */
+  async function verifySubdl(): Promise<string> {
+    subdl = null
+    subdlAccount.value = null
+    const a = await subdlApi().account()
+    subdlAccount.value = a
+    const reset = clock(a.downloads.resetAt)
+    return `SubDL OK — ${a.plan} plan${a.name ? ` (${a.name})` : ''} · ${a.downloads.remaining}/${a.downloads.limit} downloads and ${a.searches.remaining}/${a.searches.limit} searches left today${reset ? `, resets ${reset}` : ''}`
+  }
+
+  /** Reset the SubDL key to the one shipped with the app. */
+  function useBuiltInSubdlKey() {
+    settings.value.subdlKey = DEFAULT_SUBDL_KEY
+    subdlAccount.value = null
+  }
+
+  /** Settings-screen check: SubDL account, an OpenSubtitles search, then each OpenSubtitles password. */
   async function test(): Promise<string> {
     const probe = { kind: 'movie' as const, title: 'Inception', year: '2010', tmdbId: '27205' }
     const parts: string[] = []
     if (subdlConfigured.value) {
-      subdl = null
       try {
-        parts.push(`SubDL OK — ${(await subdlApi().search(probe)).length} results for "Inception"`)
+        parts.push(await verifySubdl())
       } catch (err) {
         parts.push((err as Error).message)
       }
@@ -318,6 +342,9 @@ export function useSubtitles() {
     configured,
     osConfigured,
     subdlConfigured,
+    subdlAccount,
+    verifySubdl,
+    useBuiltInSubdlKey,
     cues,
     currentText,
     active,

@@ -15,7 +15,32 @@ import { listZip, readZipEntry } from './zip'
  */
 
 const API = 'https://api.subdl.com/api/v2/subtitles/search'
+const ME = 'https://api.subdl.com/api/v2/me'
 const DL = 'https://dl.subdl.com'
+
+/** One daily counter from `/api/v2/me`. */
+export interface SdQuota {
+  used: number
+  limit: number
+  remaining: number
+  /** Epoch ms, or null when the API gave none. */
+  resetAt: number | null
+}
+
+export interface SdAccount {
+  name: string
+  plan: string
+  isPro: boolean
+  searches: SdQuota
+  downloads: SdQuota
+}
+
+/** Mask a key for display: `subdl_E1bH…lltg`. */
+export function maskKey(key: string): string {
+  const k = key.trim()
+  if (k.length <= 12) return k ? '••••' : ''
+  return `${k.slice(0, 10)}…${k.slice(-4)}`
+}
 
 interface SdFile {
   name?: string
@@ -39,6 +64,15 @@ interface SdSubtitle {
   hi?: boolean
   full_season?: boolean
   unpack_files?: SdFile[]
+}
+
+interface SdMeResponse {
+  user?: { name?: string | null; username?: string | null }
+  plan?: { is_pro?: boolean; name?: string }
+  usage?: {
+    search?: { used?: number; limit?: number; remaining?: number; reset_at?: string | null }
+    downloads?: { used?: number; limit?: number; remaining?: number; reset_at?: string | null }
+  }
 }
 
 interface SdResponse {
@@ -118,6 +152,25 @@ export class SubDL {
       })
     }
     return sortHits(hits, this.cfg.languages)
+  }
+
+  /**
+   * Verify the key and read today's counters (`/api/v2/me`). Free of charge:
+   * this call is not counted against the search quota.
+   */
+  async account(): Promise<SdAccount> {
+    const r = (await this.call(ME)) as SdResponse & SdMeResponse
+    const quota = (q?: { used?: number; limit?: number; remaining?: number; reset_at?: string | null }): SdQuota => {
+      const at = q?.reset_at ? Date.parse(q.reset_at) : NaN
+      return { used: q?.used ?? 0, limit: q?.limit ?? 0, remaining: q?.remaining ?? 0, resetAt: Number.isFinite(at) ? at : null }
+    }
+    return {
+      name: r.user?.name || r.user?.username || '',
+      plan: r.plan?.name || (r.plan?.is_pro ? 'Pro' : 'Free'),
+      isPro: !!r.plan?.is_pro,
+      searches: quota(r.usage?.search),
+      downloads: quota(r.usage?.downloads),
+    }
   }
 
   /** `ref` is a download path from `search`; returns the SRT text. */
