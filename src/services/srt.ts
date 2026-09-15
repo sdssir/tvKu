@@ -66,3 +66,22 @@ export function cueAt(cues: Cue[], t: number): Cue | null {
   }
   return null
 }
+
+/**
+ * Index of the cue on screen at `t`, or of the next one to appear; -1 when
+ * nothing comes after `t`. Used by the sync panel to keep its cursor on the
+ * line the viewer is about to hear.
+ */
+export function nextCueIndex(cues: Cue[], t: number): number {
+  let lo = 0
+  let hi = cues.length - 1
+  let best = -1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (cues[mid]!.end > t) {
+      best = mid
+      hi = mid - 1
+    } else lo = mid + 1
+  }
+  return best
+}

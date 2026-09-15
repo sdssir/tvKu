@@ -1,19 +1,45 @@
-/* Shared by the movie and series detail overlays: a hero backdrop with a scrim. */
+/*
+ * Shared by the movie and series detail overlays: a hero backdrop with a scrim.
+ * The backdrop fills the screen anchored bottom-right, so a 16:9 still covers
+ * it and a poster used as a stand-in (2:3, when the panel has no backdrop)
+ * stands full height at the right edge. The scrim fades it out towards the
+ * top-left where the poster and text sit, and keeps the bottom-right open.
+ */
 .detail {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: var(--bg-0) var(--backdrop, none) right top / 70% auto no-repeat;
+  background: var(--bg-0);
+}
+/* The picture itself, on its own layer so its edges can be feathered with a mask. */
+.detail::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--backdrop, none) right bottom / cover no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, transparent 8%, #000 55%);
+  mask-image: linear-gradient(90deg, transparent 8%, #000 55%);
+}
+/*
+ * A 2:3 poster at full height starts 62.5% across a 16:9 screen (a little
+ * further right on a wider window), so the fade begins there and the poster's
+ * own left edge is never visible as a hard line.
+ */
+.detail.is-poster-backdrop::before {
+  background-size: auto 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 62%, #000 88%);
+  mask-image: linear-gradient(90deg, transparent 62%, #000 88%);
 }
 .detail.is-covered {
   visibility: hidden;
 }
+/* Tone the picture down under the text (left, and the top band) without killing it at the bottom right. */
 .detail__scrim {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7) 70%, #000),
-    var(--grad-hero);
+    linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.45) 30%, rgba(0, 0, 0, 0) 60%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(0, 0, 0, 0.2) 70%, rgba(0, 0, 0, 0) 100%);
 }
 .detail__body {
   position: relative;

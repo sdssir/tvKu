@@ -9,6 +9,7 @@ import { qualityLabel } from '@/services/quality'
 import { fmtBytes, fmtMbps } from '@/services/mediaInfo'
 import { useSubtitles } from '@/composables/useSubtitles'
 import { useToast } from '@/composables/useToast'
+import { nextCueIndex } from '@/services/srt'
 import VirtualList from './VirtualList.vue'
 import ChannelRow from './ChannelRow.vue'
 
@@ -17,7 +18,7 @@ import ChannelRow from './ChannelRow.vue'
  *
  *  Live   Up/Down, CH+/-  zap · OK  channel list · digits  go to channel number
  *  VOD    OK / ⏯  play-pause · Left/Right  ±10 s · ⏪/⏩  ±60 s · Down  subtitles
- *         Red / Green  subtitle delay −/+ 0.5 s
+ *         Red / Green  subtitle delay −/+ 0.5 s · Yellow  subtitle sync panel
  *  Both   Info / any key  show the overlay · Back  close (or close the list)
  */
 const player = usePlayer()
@@ -110,8 +111,9 @@ const subTarget = computed<{ id: string } | null>(() => {
   return { id: s.kind === 'vod' ? s.item.id : `ep:${s.episode.id}` }
 })
 
-/** Row 0 is "Off"; the rest are search hits. */
-const subRows = computed(() => subs.results.value.length + 1)
+/** Row 0 is "Off", then "Adjust timing" while a file is active, then the search hits. */
+const hitBase = computed(() => (subs.active.value ? 2 : 1))
+const subRows = computed(() => subs.results.value.length + hitBase.value)
 
 async function openSubs() {
   if (!subTarget.value) return
@@ -133,18 +135,89 @@ async function pickSub() {
     toast.show('Subtitles off')
     return
   }
-  const hit = subs.results.value[subCursor.value - 1]
+  if (subs.active.value && subCursor.value === 1) {
+    openSync()
+    return
+  }
+  const hit = subs.results.value[subCursor.value - hitBase.value]
   if (!hit) return
   toast.show('Downloading subtitles…')
   const ok = await subs.choose(target.id, hit)
   if (ok) {
     closeSubs()
     const left = subs.remaining.value
-    toast.show(`Subtitles: ${hit.language.toUpperCase()} · ${hit.release}${left !== null ? ` (${left} downloads left today)` : ''}`)
+    const who = subs.lastUser.value ? ` for ${subs.lastUser.value}` : ''
+    const note = hit.provider === 'subdl' ? ' (SubDL)' : left !== null ? ` (${left} downloads left today${who})` : ''
+    toast.show(`Subtitles: ${hit.language.toUpperCase()} · ${hit.release}${note}`)
   } else toast.show(subs.error.value ?? 'Could not load subtitles', 'bad')
 }
 
 const subLines = computed(() => subs.currentText.value.split('\n'))
+
+/* ── subtitle sync ──────────────────────────────────────────────────── */
+
+/*
+ * A list of the lines around the current moment. The viewer picks the one
+ * they are hearing and presses OK; the whole file shifts so that line starts
+ * now. Coarse and fine nudges are there too, and the result is remembered per
+ * title (useSubtitles).
+ */
+const syncOpen = ref(false)
+const syncCursor = ref(0)
+/** The cursor tracks playback until the viewer moves it. */
+let syncFollow = true
+const SYNC_ROWS = 11
+
+function openSync() {
+  if (!subs.active.value || !subs.cues.value.length) return
+  closeSubs()
+  syncFollow = true
+  syncCursor.value = Math.max(0, nextCueIndex(subs.cues.value, player.currentTime.value - subs.offset.value))
+  syncOpen.value = true
+}
+function closeSync() {
+  syncOpen.value = false
+}
+
+watch(
+  () => player.currentTime.value,
+  (t) => {
+    if (!syncOpen.value || !syncFollow) return
+    const i = nextCueIndex(subs.cues.value, t - subs.offset.value)
+    if (i >= 0) syncCursor.value = i
+  },
+)
+
+const syncWindow = computed(() => {
+  const cues = subs.cues.value
+  const half = Math.floor(SYNC_ROWS / 2)
+  const start = Math.min(Math.max(0, syncCursor.value - half), Math.max(0, cues.length - SYNC_ROWS))
+  return cues.slice(start, start + SYNC_ROWS).map((cue, k) => ({ cue, index: start + k }))
+})
+/** The cue on screen right now (with the current correction), for the marker. */
+const syncNowIndex = computed(() => {
+  const t = player.currentTime.value - subs.offset.value
+  const i = nextCueIndex(subs.cues.value, t)
+  const c = subs.cues.value[i]
+  return c && c.start <= t ? i : -1
+})
+const delayText = computed(() => {
+  const o = subs.offset.value
+  return `${o < 0 ? '−' : '+'}${Math.abs(o).toFixed(1)} s`
+})
+const delayHint = computed(() => {
+  const o = subs.offset.value
+  if (!o) return 'No correction'
+  return `Subtitles show ${Math.abs(o).toFixed(1)} s ${o > 0 ? 'later' : 'earlier'} than the file says`
+})
+
+function syncAlign() {
+  const cue = subs.cues.value[syncCursor.value]
+  if (!cue) return
+  subs.alignCue(cue)
+  closeSync()
+  toast.show(`Subtitles synced · delay ${delayText.value}`)
+}
 
 /* ── digit entry ────────────────────────────────────────────────────── */
 
@@ -168,6 +241,48 @@ function onKey(e: KeyboardEvent): boolean {
   const isLive = !!live.value
 
   if (e.repeat && (code === KEY.OK || code === KEY.BACK || e.key === 'Enter' || e.key === 'Escape')) return true
+
+  if (syncOpen.value) {
+    switch (code) {
+      case KEY.UP:
+        syncFollow = false
+        syncCursor.value = Math.max(0, syncCursor.value - 1)
+        return true
+      case KEY.DOWN:
+        syncFollow = false
+        syncCursor.value = Math.min(subs.cues.value.length - 1, syncCursor.value + 1)
+        return true
+      case KEY.OK:
+        syncAlign()
+        return true
+      case KEY.LEFT:
+      case KEY.RED:
+        subs.nudge(-0.5)
+        return true
+      case KEY.RIGHT:
+      case KEY.GREEN:
+        subs.nudge(0.5)
+        return true
+      case KEY.REWIND:
+        subs.nudge(-5)
+        return true
+      case KEY.FORWARD:
+        subs.nudge(5)
+        return true
+      case KEY.BLUE:
+        subs.setOffset(0)
+        return true
+      case KEY.PLAY_PAUSE:
+        player.togglePlay()
+        return true
+      case KEY.BACK:
+        closeSync()
+        return true
+    }
+    if (e.key === 'Escape') closeSync()
+    else if (e.key === ' ') player.togglePlay()
+    return true
+  }
 
   if (subOpen.value) {
     switch (code) {
@@ -259,8 +374,11 @@ function onKey(e: KeyboardEvent): boolean {
     case KEY.GREEN:
       if (!isLive && subs.active.value) {
         subs.nudge(code === KEY.RED ? -0.5 : 0.5)
-        toast.show(`Subtitle delay ${subs.offset.value >= 0 ? '+' : ''}${subs.offset.value.toFixed(1)} s`)
+        toast.show(`Subtitle delay ${delayText.value} · YELLOW to sync by ear`)
       }
+      return true
+    case KEY.YELLOW:
+      if (!isLive && subs.active.value) openSync()
       return true
     case KEY.LEFT:
       if (!isLive) player.seekBy(-10)
@@ -364,7 +482,7 @@ const stateLabel = computed(() => {
             <span class="overlay__time">{{ fmtClock(player.duration.value) }}</span>
           </div>
           <p class="overlay__hint tiny">
-            OK play/pause · ◀▶ ±10 s · ⏪⏩ ±60 s · ▼ subtitles<template v-if="subs.active.value"> ({{ subs.active.value.language.toUpperCase() }})</template> · BACK exit
+            OK play/pause · ◀▶ ±10 s · ⏪⏩ ±60 s · ▼ subtitles<template v-if="subs.active.value"> ({{ subs.active.value.language.toUpperCase() }}) · YELLOW sync</template> · BACK exit
           </p>
         </div>
       </div>
@@ -373,20 +491,25 @@ const stateLabel = computed(() => {
     <Transition name="fade">
       <aside v-if="subOpen" class="chlist panel">
         <h3>Subtitles</h3>
-        <p v-if="!subs.configured.value" class="chlist__note">Add an OpenSubtitles API key under Settings to search for subtitles.</p>
-        <p v-else-if="subs.searching.value" class="chlist__note"><span class="spinner spinner--sm"></span> Searching OpenSubtitles…</p>
+        <p v-if="!subs.configured.value" class="chlist__note">Add a SubDL or OpenSubtitles API key under Settings to search for subtitles.</p>
+        <p v-else-if="subs.searching.value" class="chlist__note"><span class="spinner spinner--sm"></span> Searching subtitles…</p>
         <p v-else-if="subs.error.value" class="chlist__note">{{ subs.error.value }}</p>
         <div class="sublist">
-          <div class="sub" :class="{ 'is-cursor': subCursor === 0, 'is-active': !subs.active.value }">
+          <div class="sub" :class="{ 'is-cursor': subCursor === 0, 'is-active': !subs.active.value }" @click="subCursor = 0; pickSub()">
             <span class="sub__lang">—</span>
             <span class="sub__name">Off</span>
           </div>
+          <div v-if="subs.active.value" class="sub sub--timing" :class="{ 'is-cursor': subCursor === 1 }" @click="subCursor = 1; pickSub()">
+            <span class="sub__lang">⏱</span>
+            <span class="sub__name">Adjust timing <span v-if="subs.offset.value" class="tag tag--good">{{ delayText }}</span></span>
+            <span class="tiny">Lines out of step with the speech? Sync them by ear.</span>
+          </div>
           <div
             v-for="(hit, i) in subs.results.value"
-            :key="hit.fileId"
+            :key="hit.provider + hit.ref"
             class="sub"
-            :class="{ 'is-cursor': subCursor === i + 1 }"
-            @click="subCursor = i + 1; pickSub()"
+            :class="{ 'is-cursor': subCursor === i + hitBase, 'is-active': subs.active.value?.release === hit.release }"
+            @click="subCursor = i + hitBase; pickSub()"
           >
             <span class="sub__lang">{{ hit.language.toUpperCase() }}</span>
             <span class="sub__name">
@@ -395,12 +518,39 @@ const stateLabel = computed(() => {
               <span v-if="hit.autoTranslated" class="tag tag--bad">AUTO-TRANSLATED</span>
               <span v-if="hit.hearingImpaired" class="tag">HI</span>
             </span>
-            <span class="tiny">
+            <span v-if="hit.provider === 'subdl'" class="tiny">
+              SubDL<template v-if="hit.uploader"> · by {{ hit.uploader }}</template><template v-if="hit.matched"> · {{ hit.matched }}</template>
+            </span>
+            <span v-else class="tiny">
               <template v-if="hit.votes">★ {{ hit.ratings.toFixed(1) }} ({{ hit.votes }}) · </template>
               ⬇ {{ hit.downloads.toLocaleString() }} · {{ hit.matched }}
             </span>
           </div>
         </div>
+      </aside>
+    </Transition>
+
+    <Transition name="fade">
+      <aside v-if="syncOpen" class="chlist sync panel">
+        <h3>Subtitle timing</h3>
+        <div class="sync__delay">
+          <span class="sync__value">{{ delayText }}</span>
+          <span class="tiny">{{ delayHint }}</span>
+        </div>
+        <p class="chlist__note">Move to the line you are hearing right now and press OK.</p>
+        <div class="synclist">
+          <div
+            v-for="row in syncWindow"
+            :key="row.index"
+            class="cue"
+            :class="{ 'is-cursor': row.index === syncCursor, 'is-now': row.index === syncNowIndex }"
+            @click="syncCursor = row.index; syncAlign()"
+          >
+            <span class="cue__time">{{ fmtClock(row.cue.start + subs.offset.value) }}</span>
+            <span class="cue__text">{{ row.cue.text.replace(/\n/g, ' ') }}</span>
+          </div>
+        </div>
+        <p class="sync__keys tiny">▲▼ line · OK hearing it now · ◀▶ ±0.5 s · ⏪⏩ ±5 s · BLUE reset · BACK done</p>
       </aside>
     </Transition>
 
@@ -593,6 +743,70 @@ const stateLabel = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Sync panel: stops short of the subtitle zone so the lines stay in view while tuning. */
+.sync {
+  bottom: 13rem;
+}
+.sync__delay {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-5) var(--sp-2);
+}
+.sync__value {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.synclist {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.cue {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: var(--sp-3);
+  align-items: center;
+  margin: 0 var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+  color: var(--text-secondary);
+}
+.cue.is-now {
+  color: var(--text-primary);
+}
+.cue.is-now .cue__time {
+  color: var(--accent);
+}
+.cue.is-cursor {
+  background: var(--focus-bg);
+  border-color: var(--focus-ring);
+  color: var(--text-primary);
+}
+.cue__time {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.cue__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--fs-md);
+  line-height: 1.3;
+}
+.sync__keys {
+  padding: var(--sp-2) var(--sp-5) 0;
+  color: var(--text-muted);
+}
+.sub--timing .sub__name {
+  color: var(--text-primary);
 }
 .tag {
   margin-left: var(--sp-2);

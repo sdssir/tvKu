@@ -98,4 +98,6 @@ export const KEYS = {
   idleMinutes: 'idleMinutes',
   subtitles: 'subtitles',
   subtitleCache: 'subtitleCache',
+  subtitleOffsets: 'subtitleOffsets',
+  subtitleQuota: 'subtitleQuota',
 } as const

@@ -5,6 +5,8 @@ import { useAccount } from '@/composables/useAccount'
 import { useCatalog } from '@/composables/useCatalog'
 import { useToast } from '@/composables/useToast'
 import { useSubtitles } from '@/composables/useSubtitles'
+import { useTvNavigation } from '@/composables/useTvNavigation'
+import type { OsLogin } from '@/services/opensubtitles'
 import { IDLE_OPTIONS, useIdle } from '@/composables/useIdle'
 import { ref } from 'vue'
 
@@ -14,7 +16,19 @@ const catalog = useCatalog()
 const toast = useToast()
 const subs = useSubtitles()
 const idle = useIdle()
+const nav = useTvNavigation()
 const subsStatus = ref<string | null>(null)
+
+function quotaNote(login: OsLogin): string {
+  const at = subs.spentUntil(login)
+  if (!at) return ''
+  return `Limit reached · resets ${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+}
+
+function removeLogin(i: number) {
+  subs.removeLogin(i)
+  void nav.reanchorFocus('subs-add', /^subs-/)
+}
 
 async function testSubs() {
   subsStatus.value = 'Checking…'
@@ -111,27 +125,33 @@ function signOut() {
     </section>
 
     <section class="panel settings__card">
-      <h2>Subtitles (OpenSubtitles)</h2>
+      <h2>Subtitles</h2>
       <p class="muted">
-        Movies and episodes can pull subtitles from opensubtitles.com. Register a free API key at opensubtitles.com/consumers; a user login raises the daily download limit.
+        Movies and episodes can pull subtitles from SubDL and OpenSubtitles; set either key or both and the lists are merged. A free SubDL key (subdl.com, account panel) allows 300 downloads a day with no login. A free OpenSubtitles key (opensubtitles.com/consumers) allows 20 a day per account login.
       </p>
-      <label class="settings__label">API key</label>
-      <input v-model.trim="subs.settings.value.apiKey" class="field" data-focus-id="subs-key" type="text" autocapitalize="off" autocomplete="off" placeholder="Paste your API key" />
-      <div class="settings__two">
-        <div>
-          <label class="settings__label">Username (optional)</label>
-          <input v-model.trim="subs.settings.value.username" class="field" data-focus-id="subs-user" type="text" autocapitalize="off" autocomplete="off" />
-        </div>
-        <div>
-          <label class="settings__label">Password (optional)</label>
-          <input v-model="subs.settings.value.password" class="field" data-focus-id="subs-pass" type="password" autocomplete="off" />
-        </div>
-      </div>
-      <label class="settings__label">Languages, in order of preference (ISO codes)</label>
-      <input v-model.trim="subs.settings.value.languages" class="field" data-focus-id="subs-langs" type="text" autocapitalize="off" autocomplete="off" placeholder="en,ms" />
-      <div class="settings__actions">
+      <!--
+        One column of full-width controls, walked with Up/Down only. Left and
+        Right never leave a text field (they move the caret), and the spatial
+        engine penalises horizontal drift, so a narrow button or a side-by-side
+        pair under a wide field would be skipped or unreachable from the D-pad.
+      -->
+      <div class="settings__subs">
+        <label class="settings__label">SubDL API key</label>
+        <input v-model.trim="subs.settings.value.subdlKey" class="field" data-focus-id="subs-subdl" type="text" autocapitalize="off" autocomplete="off" placeholder="subdl_…" />
+        <label class="settings__label">OpenSubtitles API key</label>
+        <input v-model.trim="subs.settings.value.apiKey" class="field" data-focus-id="subs-key" type="text" autocapitalize="off" autocomplete="off" placeholder="Paste your API key" />
+        <label class="settings__label">OpenSubtitles logins (optional) — each has its own daily download limit; when one is used up the next is tried</label>
+        <template v-for="(login, i) in subs.settings.value.logins" :key="i">
+          <input v-model.trim="login.username" class="field" :data-focus-id="`subs-user-${i}`" type="text" autocapitalize="off" autocomplete="off" :placeholder="`Username ${i + 1}`" />
+          <span v-if="quotaNote(login)" class="tiny settings__note">{{ quotaNote(login) }}</span>
+          <input v-model="login.password" class="field" :data-focus-id="`subs-pass-${i}`" type="password" autocomplete="off" :placeholder="`Password ${i + 1}`" />
+          <button class="btn btn--ghost" :data-focus-id="`subs-del-${i}`" @click="removeLogin(i)">Remove login {{ i + 1 }}</button>
+        </template>
+        <button class="btn" data-focus-id="subs-add" @click="subs.addLogin()">Add login</button>
+        <label class="settings__label">Languages, in order of preference (ISO codes)</label>
+        <input v-model.trim="subs.settings.value.languages" class="field" data-focus-id="subs-langs" type="text" autocapitalize="off" autocomplete="off" placeholder="en,ms" />
         <button class="btn" data-focus-id="subs-test" :disabled="!subs.configured.value" @click="testSubs">Test connection</button>
-        <span v-if="subsStatus" class="muted">{{ subsStatus }}</span>
+        <span v-if="subsStatus" class="muted settings__note">{{ subsStatus }}</span>
       </div>
       <p class="tiny">While a movie plays: ▼ opens the subtitle list · red / green shift timing by 0.5 s. Your choice is remembered per title.</p>
     </section>
@@ -187,9 +207,25 @@ dd {
   font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
-.settings__two {
+.settings__subs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 28rem) 1fr;
   gap: var(--sp-3);
+}
+.settings__subs > * {
+  grid-column: 1;
+}
+.settings__subs > .settings__label,
+.settings__subs > .settings__note {
+  grid-column: 1 / -1;
+}
+.settings__subs .btn {
+  justify-self: stretch;
+}
+.settings__subs .settings__label {
+  margin-top: var(--sp-2);
+}
+.settings__note {
+  margin-top: calc(-1 * var(--sp-2));
 }
 </style>

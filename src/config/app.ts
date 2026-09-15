@@ -1,7 +1,7 @@
 /** Single source of truth for app identity. Keep in sync with public/appinfo.json. */
 export const APP = {
   id: 'com.jul.tvku',
-  version: '1.1.0',
+  version: '1.2.0',
   title: 'tvKu',
   tagline: 'TV for Everyone',
   railNote: 'Malaysian Entertainment Always With You',

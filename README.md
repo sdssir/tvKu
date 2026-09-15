@@ -89,19 +89,39 @@ stage at `inset: 0` with the shell set to `visibility: hidden`. Switching modes 
 
 ## Subtitles
 
-Movies and episodes pull subtitles from opensubtitles.com. Set an API key (free, from
-opensubtitles.com/consumers) and a language order in Settings; adding the account login raises
-the daily download limit. While playing: **▼** opens the list, **red / green** shift timing by
-0.5 s, and the chosen file is cached per title so a replay costs no download.
+Movies and episodes pull subtitles from SubDL and/or OpenSubtitles; set either API key or both
+in Settings, plus a language order, and the two lists are merged. *Test connection* checks each
+key.
+
+- **SubDL** (free key from the subdl.com account panel): 2,000 searches a day, and downloads are
+  anonymous, counted per IP address (300 a day). Search asks for the unpacked file list so the
+  raw `.srt` is fetched directly; an entry without one is downloaded as a ZIP and opened on the
+  TV with the browser's DecompressionStream (`src/services/zip.ts`).
+- **OpenSubtitles** (free key from opensubtitles.com/consumers): 20 downloads a day per account
+  login. The limit is counted per account (per IP address without one), not per API key, so
+  Settings takes a list of logins: a download goes to the first account with quota left, and one
+  that runs out is skipped until the reset time the API reports.
+
+While playing: **▼** opens the list and the chosen file is cached per title so a replay costs no
+download.
+
+**Out of sync?** Press **yellow** (or pick *Adjust timing* in the list). The panel lists the lines
+around the current moment and keeps its cursor on the one about to be spoken; move to the line
+you are actually hearing and press **OK**, and the whole file shifts so that line starts now.
+**◀ ▶** nudge by 0.5 s, **⏪ ⏩** by 5 s, **blue** resets; **red / green** still nudge by 0.5 s
+outside the panel. The correction is remembered per title.
 
 **Matching is by TMDB id, not title.** The panel supplies `tmdb_id` for movies (via
 `get_vod_info`) and for episodes (inside `get_series_info`), and OpenSubtitles accepts it
-directly. This matters more than it sounds: a title search for *The Wolf and the Lion* returns
-3,426 rows — mostly *Shang-Chi*, *Raya and the Last Dragon* and *The Witcher: Nightmare of the
-Wolf*, because the words "the", "and", "wolf" and "lion" match everything — while the id returns
-exactly the 5 files for that film. Title search remains the fallback when a panel gives no id.
+directly, as does SubDL. This matters more than it sounds: a title search for *The Wolf and the
+Lion* returns 3,426 rows — mostly *Shang-Chi*, *Raya and the Last Dragon* and *The Witcher:
+Nightmare of the Wolf*, because the words "the", "and", "wolf" and "lion" match everything —
+while the id returns exactly the 5 files for that film. Title search remains the fallback when a
+panel gives no id.
 
-Within each language, files are ordered by `qualityScore`:
+Within each language, files are ordered by `qualityScore`. SubDL reports none of these signals,
+so its files score 0 and sit below any rated or popular OpenSubtitles file in the same language,
+in the order SubDL returned them:
 
 | Signal | Weight | Why |
 |---|---|---|

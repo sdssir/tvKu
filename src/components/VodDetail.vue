@@ -58,10 +58,12 @@ function play(fromStart = false) {
 }
 
 const backdrop = computed(() => details.value?.backdrop ?? props.item.poster)
+/** Only a poster to show: it is portrait, so size it by height instead of covering. */
+const posterOnly = computed(() => !details.value?.backdrop && !!props.item.poster)
 </script>
 
 <template>
-  <div class="detail" :style="backdrop ? { '--backdrop': `url(${JSON.stringify(backdrop)})` } : undefined">
+  <div class="detail" :class="{ 'is-poster-backdrop': posterOnly }" :style="backdrop ? { '--backdrop': `url(${JSON.stringify(backdrop)})` } : undefined">
     <div class="detail__scrim"></div>
     <div class="detail__body">
       <div class="detail__poster">

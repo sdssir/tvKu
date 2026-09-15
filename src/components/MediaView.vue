@@ -17,6 +17,7 @@ const categories = computed(() => catalog.categoriesFor(props.kind))
 const catCursor = ref(0)
 const gridCursor = ref(0)
 const activeCategoryId = ref(categories.value[0]?.id ?? '')
+const activeCategory = computed(() => categories.value.find((c) => c.id === activeCategoryId.value) ?? null)
 const items = computed(() => catalog.itemsIn(props.kind, activeCategoryId.value))
 const searching = computed(() => catalog.isSearching(props.kind))
 const title = computed(() => (props.kind === 'vod' ? 'Movies' : 'Series'))
@@ -80,9 +81,16 @@ function onBrowseCategory(i: number) {
         </VirtualList>
       </aside>
       <section class="media__grid">
-        <PosterGrid v-model:cursor="gridCursor" :items="items" :focus-id="`${kind}-grid`" :columns="POSTER_COLUMNS" @select="(item) => emit('open', item)">
-          <template #empty>{{ searching ? 'Nothing matches' : kind === 'vod' ? 'No movies here' : 'No series here' }}</template>
-        </PosterGrid>
+        <!-- The category column is narrow and provider names are long: the chosen one is spelled out in full here. -->
+        <header class="media__head">
+          <p class="eyebrow">{{ searching ? 'Search' : 'Category' }}</p>
+          <h2 class="media__cat">{{ searching ? `Results for “${catalog.queries.value[kind].trim()}”` : activeCategory?.name }}</h2>
+        </header>
+        <div class="media__posters">
+          <PosterGrid v-model:cursor="gridCursor" :items="items" :focus-id="`${kind}-grid`" :columns="POSTER_COLUMNS" @select="(item) => emit('open', item)">
+            <template #empty>{{ searching ? 'Nothing matches' : kind === 'vod' ? 'No movies here' : 'No series here' }}</template>
+          </PosterGrid>
+        </div>
       </section>
     </div>
   </div>
@@ -91,7 +99,7 @@ function onBrowseCategory(i: number) {
 <style scoped>
 .media {
   display: grid;
-  grid-template-columns: 18rem 1fr;
+  grid-template-columns: 22rem 1fr;
   gap: var(--sp-4);
   min-height: 0;
 }
@@ -104,6 +112,29 @@ function onBrowseCategory(i: number) {
   opacity: 0.45;
 }
 .media__grid {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.media__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-3) var(--sp-2);
+}
+.media__cat {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.media__posters {
+  flex: 1;
   min-height: 0;
 }
 </style>
